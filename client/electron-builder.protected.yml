@@ -1,0 +1,16 @@
+appId: com.fanzai.client
+productName: 饭仔客户端
+asar: true
+directories:
+  output: ../runtime/electron-app
+files:
+  - .protected-src/**/*
+extraMetadata:
+  main: .protected-src/main/main.js
+win:
+  target:
+    - target: portable
+      arch:
+        - x64
+portable:
+  artifactName: 饭仔客户端.exe

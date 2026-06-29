@@ -1,0 +1,45 @@
+{
+  "name": "fanzai-client",
+  "version": "0.1.0",
+  "description": "饭仔 9Router 客户端 — 现代化 GUI 启动器",
+  "main": "src/main/main.js",
+  "author": "fanzai",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "protect": "node scripts/protect-build.js",
+    "dist:protected": "npm run protect && electron-builder --config electron-builder.protected.yml"
+  },
+  "build": {
+    "appId": "com.fanzai.client",
+    "productName": "饭仔客户端",
+    "directories": {
+      "output": "../runtime/electron-app"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "portable": {
+      "artifactName": "饭仔客户端.exe"
+    }
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0",
+    "javascript-obfuscator": "^5.4.3"
+  }
+}

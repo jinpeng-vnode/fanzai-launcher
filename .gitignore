@@ -1,0 +1,29 @@
+# 构建产物
+client/.protected-src/
+client/node_modules/
+runtime/electron-app/
+runtime/*.zip
+runtime/*.tar.gz
+runtime/node/
+runtime/9router/
+
+# 分发打包产物（zip 体积大，不进库）
+dist-packages/
+
+# 凭证（敏感数据，绝不提交）
+creds/
+*.credential.json
+.launcher.json
+keys.json
+
+# 系统文件
+.DS_Store
+Thumbs.db
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# Playwright MCP 调试文件
+.playwright-mcp/

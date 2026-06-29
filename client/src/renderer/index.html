@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self';" />
+  <title>饭仔客户端</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- 自绘标题栏（无边框窗口） -->
+  <div class="titlebar">
+    <div class="titlebar-title">
+      <span class="logo-dot"></span>
+      饭仔 · Claude Code 启动器
+    </div>
+    <div class="titlebar-actions">
+      <span class="titlebar-group">QQ群 142586897</span>
+      <button class="tbtn" id="btn-min" title="最小化">&#x2014;</button>
+      <button class="tbtn tbtn-close" id="btn-close" title="关闭">&#x2715;</button>
+    </div>
+  </div>
+
+  <main class="app">
+    <!-- 左侧：品牌 + 密钥列表 + 状态 -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">饭</div>
+        <div class="brand-text">
+          <div class="brand-name">饭仔客户端</div>
+          <div class="brand-sub">Claude Opus · Kiro</div>
+        </div>
+      </div>
+
+      <!-- 密钥列表 -->
+      <div class="keys-panel">
+        <div class="keys-head">
+          <span class="keys-title">我的密钥</span>
+          <button class="kbtn" id="btn-refresh-all" title="刷新全部用量">&#x21bb;</button>
+        </div>
+        <div class="keys-list" id="keys-list">
+          <div class="keys-empty" id="keys-empty">还没有密钥<br />点下方按钮添加</div>
+        </div>
+        <div class="keys-add-row">
+          <input type="text" id="add-input" class="keys-add-input" placeholder="粘贴密钥后回车添加…" autocomplete="off" spellcheck="false" />
+          <button class="btn-add-inline" id="btn-add-key" title="添加密钥">+</button>
+        </div>
+        <button class="btn-shop" id="btn-shop" title="前往店铺购买 / 续费">🛒 购买·续费</button>
+      </div>
+
+      <div class="sidebar-foot">
+        <span class="dot-ok" id="conn-dot"></span>
+        <span id="conn-text">未连接</span>
+      </div>
+    </aside>
+
+    <!-- 右侧：主内容 -->
+    <section class="content">
+      <!-- 模式切换 -->
+      <div class="mode-tabs">
+        <button class="mode-tab active" id="tab-api" data-mode="api">
+          <span class="mode-tab-name">API 配置</span>
+          <span class="mode-tab-sub">饭仔密钥 · 自定义 API</span>
+        </button>
+        <button class="mode-tab" id="tab-local" data-mode="local">
+          <span class="mode-tab-name">本地 9Router</span>
+          <span class="mode-tab-sub">用自己的账号 · 多账号路由</span>
+        </button>
+      </div>
+
+      <div class="mcp-card">
+        <div class="mcp-head">
+          <div>
+            <div class="mcp-title">MCP</div>
+            <div class="mcp-sub" id="mcp-status">读取中</div>
+          </div>
+          <button class="btn-primary btn-mcp-apply" id="btn-mcp-apply">应用</button>
+        </div>
+        <div class="mcp-options">
+          <label class="mcp-option">
+            <input type="checkbox" id="mcp-playwright" />
+            <span>
+              <strong>Playwright</strong>
+              <small>浏览器自动化</small>
+            </span>
+          </label>
+          <label class="mcp-option">
+            <input type="checkbox" id="mcp-batch" />
+            <span>
+              <strong>Batch</strong>
+              <small>本机 SSE · 3179</small>
+            </span>
+          </label>
+        </div>
+      </div>
+
+      <!-- 视图：API 配置（合并了远程密钥和手动API） -->
+      <div id="view-api">
+        <!-- 饭仔密钥：显示用量仪表盘 -->
+        <div id="panel-remote" hidden>
+          <div class="card">
+            <div class="card-head">
+              <h2>饭仔密钥</h2>
+              <span class="badge" id="key-badge">未选择</span>
+            </div>
+            <div class="config-grid">
+              <div class="config-row">
+                <span class="config-label">API 地址</span>
+                <span class="config-value" id="active-baseurl">—</span>
+              </div>
+              <div class="config-row config-row-key">
+                <span class="config-label">API Key</span>
+                <span class="config-value active-key-prefix" id="active-prefix">— 未选择密钥 —</span>
+                <button class="btn-ghost" id="btn-copy-key" title="复制完整密钥">复制</button>
+              </div>
+              <div class="config-row">
+                <span class="config-label">模型</span>
+                <span class="config-value" id="active-model">—</span>
+              </div>
+            </div>
+            <div class="actions">
+              <button class="btn-primary" id="btn-query">刷新用量</button>
+              <button class="btn-launch" id="btn-launch">启动 Claude Code</button>
+            </div>
+            <div class="msg" id="msg-remote"></div>
+          </div>
+
+          <!-- 仪表盘 -->
+          <div class="dash" id="dash" hidden>
+            <div class="stat">
+              <div class="stat-label">已用额度</div>
+              <div class="stat-value" id="stat-used">—</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">剩余额度</div>
+              <div class="stat-value stat-good" id="stat-remain">—</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">今日已用</div>
+              <div class="stat-value" id="stat-today">—</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">限速 RPM</div>
+              <div class="stat-value" id="stat-rpm">—</div>
+            </div>
+
+            <!-- 用量进度条 -->
+            <div class="usage-bar-wrap">
+              <div class="usage-bar-head">
+                <span id="usage-name">额度使用</span>
+                <span id="usage-pct">0%</span>
+              </div>
+              <div class="usage-bar"><div class="usage-bar-fill" id="usage-fill"></div></div>
+            </div>
+
+            <!-- 可用模型 -->
+            <div class="models">
+              <div class="models-label">可用模型</div>
+              <div class="models-list" id="models-list"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 自定义 API：显示编辑表单 -->
+        <div id="panel-custom" hidden>
+          <div class="card">
+            <div class="card-head">
+              <h2 id="custom-title">自定义 API</h2>
+              <span class="badge" id="custom-badge">未保存</span>
+              <button class="btn-new-custom-inline" id="btn-new-custom-sidebar" title="新建自定义 API 配置">+ 新建</button>
+            </div>
+
+            <div class="form-section">
+              <div class="section-title">连接信息</div>
+              <div class="form-grid">
+                <label class="form-field">
+                  <span class="form-label">名称<span class="required">*</span></span>
+                  <input type="text" id="custom-label" class="form-input" placeholder="例如：公司中转 / 本地代理 / 备用 Key" autocomplete="off" spellcheck="false" />
+                </label>
+                <label class="form-field">
+                  <span class="form-label">API 地址<span class="required">*</span></span>
+                  <input type="text" id="custom-baseurl" class="form-input" placeholder="https://api.example.com（不带 /v1）" autocomplete="off" spellcheck="false" />
+                </label>
+                <label class="form-field form-field-full">
+                  <span class="form-label">API Key<span class="required">*</span></span>
+                  <div class="key-input-wrap">
+                    <input type="password" id="custom-apikey" class="form-input key-password-input" placeholder="sk-..." autocomplete="off" spellcheck="false" />
+                    <button class="btn-eye" id="btn-toggle-key-vis" title="显示/隐藏密钥" type="button">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                      </svg>
+                    </button>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-section">
+              <div class="section-title">模型配置</div>
+              <div class="form-tools">
+                <button class="btn-primary" id="btn-detect-models" title="检测地址并自动拉取可用模型">
+                  <span class="btn-icon">🔍</span> 检测并拉取模型
+                </button>
+                <div class="form-inline-add">
+                  <input type="text" id="input-add-model" class="form-input form-input-sm" placeholder="或手动添加模型名…" autocomplete="off" spellcheck="false" />
+                  <button class="btn-add-inline" id="btn-add-model" title="添加模型">+</button>
+                </div>
+              </div>
+              <div class="models-grid" id="custom-models">
+                <div class="empty-hint">还没有模型，先检测或手动添加</div>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button class="btn-launch" id="btn-save-custom">
+                <span class="btn-icon">💾</span> 保存配置
+              </button>
+              <button class="btn-primary" id="btn-test-model">测试当前模型</button>
+            </div>
+
+            <div class="form-section">
+              <div class="section-title">启动工具</div>
+              <div class="launch-actions">
+                <button class="btn-launch" id="btn-launch-claude">
+                  <span class="btn-icon">🚀</span> 启动 Claude Code
+                </button>
+                <button class="btn-primary" id="btn-launch-codex-custom">
+                  <span class="btn-icon">🔧</span> 启动 Codex
+                </button>
+              </div>
+            </div>
+
+            <div class="msg" id="msg-custom"></div>
+          </div>
+        </div>
+
+        <!-- 空状态提示 -->
+        <div id="panel-empty">
+          <div class="empty-state">
+            <div class="empty-icon">🔑</div>
+            <div class="empty-title">还没有选择密钥</div>
+            <div class="empty-desc">从左侧列表选择一个密钥，或点击下方按钮新建自定义 API 配置</div>
+            <button class="btn-primary" id="btn-new-custom-empty">+ 新建自定义 API</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 视图：本地 9Router -->
+      <div id="view-local" hidden>
+        <div class="card">
+          <div class="card-head">
+            <h2>本地 9Router</h2>
+            <span class="badge" id="router-badge">未启动</span>
+          </div>
+          <p class="local-desc">
+            用你自己的 Kiro 账号在本机起一个路由器，支持多账号自动轮换。
+            首次启动会下载运行时（约 1-2 分钟），之后秒开。
+          </p>
+          <div class="actions">
+            <button class="btn-launch" id="btn-launch-local">⚡ 启动并打开 VS Code</button>
+            <button class="btn-primary" id="btn-router-only">仅启动路由器</button>
+            <button class="btn-secondary" id="btn-scan-kiro">🔍 扫描本机 Kiro 凭证</button>
+          </div>
+          <div class="local-conn" id="local-conn" hidden>
+            <div class="local-conn-row"><span class="local-conn-label">本机地址</span><a class="local-conn-val local-link" id="local-baseurl" href="#" role="link">—</a></div>
+            <div class="local-conn-row" id="local-lan-row" hidden><span class="local-conn-label">局域网</span><a class="local-conn-val local-link" id="local-lanurl" href="#" role="link">—</a><button class="btn-ghost" id="btn-copy-lan">复制</button></div>
+            <div class="local-conn-row"><span class="local-conn-label">API Key</span><span class="local-conn-val" id="local-apikey">—</span><button class="btn-ghost" id="btn-copy-local">复制</button></div>
+          </div>
+          <div class="local-conn" id="kiro-cred-result" hidden>
+            <div class="local-conn-row"><span class="local-conn-label">账号</span><span class="local-conn-val" id="kiro-email">—</span></div>
+            <div class="local-conn-row"><span class="local-conn-label">认证方式</span><span class="local-conn-val" id="kiro-auth-method">—</span></div>
+            <div class="local-conn-row"><span class="local-conn-label">Region</span><span class="local-conn-val" id="kiro-region">—</span></div>
+            <div class="local-conn-row"><span class="local-conn-label">过期时间</span><span class="local-conn-val" id="kiro-expires">—</span></div>
+            <div class="local-conn-row"><span class="local-conn-label">RefreshToken</span><span class="local-conn-val" id="kiro-refresh-token">—</span><button class="btn-ghost" id="btn-copy-refresh">复制</button></div>
+          </div>
+          <div class="msg" id="msg-local"></div>
+        </div>
+      </div>
+
+      <!-- 共享启动日志框 -->
+      <div class="logbox" id="logbox" hidden>
+        <div class="logbox-head">
+          <span>启动日志</span>
+          <button class="kbtn" id="btn-log-clear" title="清空">&#x2715;</button>
+        </div>
+        <div class="progress-wrap" id="launch-progress" hidden>
+          <div class="progress-meta">
+            <span id="progress-title">准备中</span>
+            <span id="progress-label">0%</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="progress-fill"></div>
+          </div>
+        </div>
+        <pre class="logbox-body" id="logbox-body"></pre>
+      </div>
+    </section>
+  </main>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
