@@ -46,6 +46,15 @@ contextBridge.exposeInMainWorld('api', {
   // 扫描本机 Kiro 凭证
   scanKiroCredential: () => ipcRenderer.invoke('kiro:scanCredential'),
 
+  // Kiro 账号凭证管理（用量查询 / 超额开关 / 增删）
+  kiroListCredentials: () => ipcRenderer.invoke('kiro:listCredentials'),
+  kiroFetchUsage: (accountId) => ipcRenderer.invoke('kiro:fetchUsage', accountId),
+  kiroFetchOverage: (accountId) => ipcRenderer.invoke('kiro:fetchOverage', accountId),
+  kiroSetOverage: (accountId, enabled) => ipcRenderer.invoke('kiro:setOverage', accountId, enabled),
+  kiroSaveCredential: (jsonStr) => ipcRenderer.invoke('kiro:saveCredential', jsonStr),
+  kiroDeleteCredential: (fileId) => ipcRenderer.invoke('kiro:deleteCredential', fileId),
+  kiroGetProxy: () => ipcRenderer.invoke('kiro:getProxy'),
+
   // 启动日志流（下载/安装进度）——返回取消订阅函数
   onLaunchLog: (cb) => {
     const handler = (_e, line) => cb(line);

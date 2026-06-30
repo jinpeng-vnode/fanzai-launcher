@@ -530,8 +530,12 @@ async function detectModels() {
     const res = await window.api.manualModels({ baseUrl, apiKey });
     $('custom-baseurl').value = stripV1(res.baseUrl);   // 回填干净基址（去掉检测命中的 /v1）
 
-    // 合并模型列表
-    customModels = [...new Set([...customModels, ...res.models])].sort();
+    // 刷新模型列表：以服务器返回为准，清空旧的残留模型
+    customModels = [...new Set(res.models.map(m => String(m).trim()).filter(Boolean))].sort();
+    // 当前选中的模型若已不在新列表里，则清空选择
+    if (activeCustomModel.trim() && !customModels.includes(activeCustomModel.trim())) {
+      activeCustomModel = '';
+    }
     renderCustomModels();
 
     // 如果没设置模型，自动选第一个
@@ -844,8 +848,14 @@ function switchMode(mode) {
   currentMode = mode;
   $('tab-api').classList.toggle('active', mode === 'api');
   $('tab-local').classList.toggle('active', mode === 'local');
+  $('tab-mcp').classList.toggle('active', mode === 'mcp');
+  $('tab-credentials').classList.toggle('active', mode === 'credentials');
   $('view-api').hidden = mode !== 'api';
   $('view-local').hidden = mode !== 'local';
+  $('view-mcp').hidden = mode !== 'mcp';
+  $('view-credentials').hidden = mode !== 'credentials';
+  // 切到凭证 tab 时自动加载列表
+  if (mode === 'credentials') loadCredentials();
 }
 
 function showLog() {
@@ -908,6 +918,172 @@ async function openLocalUrl(value) {
 }
 
 // ============================================================
+// 账号凭证管理
+// ============================================================
+
+async function loadCredentials() {
+  const list = $('cred-list');
+  // 更新代理状态指示器
+  updateProxyIndicator();
+  try {
+    const accounts = await window.api.kiroListCredentials();
+    if (!accounts || accounts.length === 0) {
+      list.innerHTML = '<div class="keys-empty">未找到凭证文件<br />点击「添加凭证」导入</div>';
+      return;
+    }
+    list.innerHTML = accounts.map((a) => renderCredCard(a)).join('');
+    // 绑定超额开关事件
+    list.querySelectorAll('[data-overage-toggle]').forEach((btn) => {
+      btn.onclick = () => toggleOverage(btn.getAttribute('data-overage-toggle'), btn.getAttribute('data-overage-status') === 'ENABLED');
+    });
+    // 绑定单个刷新按钮
+    list.querySelectorAll('[data-refresh-usage]').forEach((btn) => {
+      btn.onclick = () => refreshSingleUsage(btn.getAttribute('data-refresh-usage'));
+    });
+    // 绑定删除按钮
+    list.querySelectorAll('[data-cred-delete]').forEach((btn) => {
+      btn.onclick = () => deleteCredential(btn.getAttribute('data-cred-delete'));
+    });
+  } catch (e) {
+    list.innerHTML = `<div class="keys-empty">加载失败：${e.message}</div>`;
+  }
+}
+
+function renderCredCard(account) {
+  const email = account.email || '未知账号';
+  const method = account.authMethod || 'social';
+  const enabled = account.enabled !== false;
+  const fileId = account.filePath || account.id || '';
+  const format = account.format === 'kirogo' ? 'Kiro-Go' : 'CLIProxyAPI';
+  return `
+    <div class="cred-card ${enabled ? '' : 'cred-disabled'}">
+      <div class="cred-card-head">
+        <div class="cred-email">${escHtml(email)}</div>
+        <div class="cred-card-badges">
+          <span class="badge cred-format">${format}</span>
+          <button class="cred-del-btn" data-cred-delete="${escAttr(fileId)}" title="删除此凭证" aria-label="删除">&times;</button>
+        </div>
+      </div>
+      <div class="cred-meta">
+        <span>认证：${escHtml(method)}</span>
+        <span>区域：${escHtml(account.region || 'us-east-1')}</span>
+      </div>
+      <div class="cred-usage" id="cred-usage-${cssId(fileId)}">
+        <span class="cred-usage-label">用量：</span>
+        <span class="cred-usage-value">点击刷新查看</span>
+      </div>
+      <div class="cred-actions-row">
+        <button class="btn-ghost" data-refresh-usage="${escAttr(fileId)}">刷新用量</button>
+        <button class="btn-ghost" data-overage-toggle="${escAttr(fileId)}" data-overage-status="">超额开关</button>
+      </div>
+    </div>
+  `;
+}
+
+async function refreshSingleUsage(fileId) {
+  const elId = `cred-usage-${cssId(fileId)}`;
+  const el = document.getElementById(elId);
+  if (el) {
+    const valEl = el.querySelector('.cred-usage-value');
+    if (valEl) valEl.textContent = '查询中…';
+  }
+  try {
+    const info = await window.api.kiroFetchUsage(fileId);
+    if (el) {
+      const valEl = el.querySelector('.cred-usage-value');
+      const pct = info.usageLimit > 0 ? Math.round(info.usagePercent * 100) : 0;
+      if (valEl) {
+        valEl.textContent = `${info.usageCurrent}/${info.usageLimit} (${pct}%) | ${info.subscriptionType || 'FREE'} | 超额: ${info.overageStatus || 'UNKNOWN'}`;
+      }
+    }
+    // 更新超额按钮状态
+    const btn = document.querySelector(`[data-overage-toggle="${fileId.replace(/"/g, '\\"')}"]`);
+    if (btn) btn.setAttribute('data-overage-status', info.overageStatus || '');
+  } catch (e) {
+    if (el) {
+      const valEl = el.querySelector('.cred-usage-value');
+      if (valEl) valEl.textContent = '查询失败：' + e.message;
+    }
+  }
+}
+
+async function refreshAllCredUsage() {
+  try {
+    const accounts = await window.api.kiroListCredentials();
+    // 并行刷新，互不影响（一个失败不阻塞其他）
+    await Promise.allSettled(
+      accounts.map((a) => refreshSingleUsage(a.filePath || a.id))
+    );
+  } catch (e) {
+    setMsg('msg-cred', '刷新失败：' + e.message, 'err');
+  }
+}
+
+async function toggleOverage(fileId, currentlyEnabled) {
+  const newState = !currentlyEnabled;
+  try {
+    const snap = await window.api.kiroSetOverage(fileId, newState);
+    setMsg('msg-cred', `超额已${snap.status === 'ENABLED' ? '开启' : '关闭'}`, 'ok');
+    refreshSingleUsage(fileId);
+  } catch (e) {
+    setMsg('msg-cred', e.message || '操作失败', 'err');
+  }
+}
+
+async function saveCredential() {
+  const raw = $('cred-add-json').value.trim();
+  if (!raw) { setMsg('msg-cred', '请粘贴凭证 JSON 内容', 'err'); return; }
+  try {
+    JSON.parse(raw); // 验证 JSON 格式
+  } catch {
+    setMsg('msg-cred', 'JSON 格式无效，请检查', 'err'); return;
+  }
+  try {
+    await window.api.kiroSaveCredential(raw);
+    $('cred-add-panel').hidden = true;
+    $('cred-list').hidden = false;
+    setMsg('msg-cred', '凭证已保存', 'ok');
+    loadCredentials();
+  } catch (e) {
+    setMsg('msg-cred', '保存失败：' + e.message, 'err');
+  }
+}
+
+async function deleteCredential(fileId) {
+  if (!confirm('确认删除此凭证？')) return;
+  try {
+    await window.api.kiroDeleteCredential(fileId);
+    loadCredentials();
+  } catch (e) {
+    setMsg('msg-cred', '删除失败：' + e.message, 'err');
+  }
+}
+
+function escHtml(s) { return String(s || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function escAttr(s) { return escHtml(s); }
+function cssId(s) { return String(s || '').replace(/[^a-zA-Z0-9_-]/g, '_'); }
+
+async function updateProxyIndicator() {
+  const el = $('proxy-indicator');
+  if (!el) return;
+  try {
+    const proxy = await window.api.kiroGetProxy();
+    if (proxy) {
+      el.textContent = '🟢 代理: ' + proxy;
+      el.title = '已通过代理请求: ' + proxy;
+      el.className = 'proxy-indicator proxy-ok';
+    } else {
+      el.textContent = '🔴 无代理';
+      el.title = '未检测到代理，API 请求可能失败';
+      el.className = 'proxy-indicator proxy-none';
+    }
+  } catch {
+    el.textContent = '⚠️ 代理检测失败';
+    el.className = 'proxy-indicator proxy-none';
+  }
+}
+
+// ============================================================
 // 事件绑定
 // ============================================================
 
@@ -919,7 +1095,23 @@ function bindEvents() {
   // ── 模式切换 ──
   $('tab-api').onclick = () => switchMode('api');
   $('tab-local').onclick = () => switchMode('local');
+  $('tab-mcp').onclick = () => switchMode('mcp');
+  $('tab-credentials').onclick = () => switchMode('credentials');
   $('btn-mcp-apply').onclick = applyMcpSettings;
+
+  // ── 账号凭证操作 ──
+  $('btn-cred-refresh').onclick = refreshAllCredUsage;
+  $('btn-cred-add').onclick = () => {
+    $('cred-list').hidden = true;
+    $('cred-add-panel').hidden = false;
+    $('cred-add-json').value = '';
+    $('cred-add-json').focus();
+  };
+  $('btn-cred-save').onclick = saveCredential;
+  $('btn-cred-cancel').onclick = () => {
+    $('cred-add-panel').hidden = true;
+    $('cred-list').hidden = false;
+  };
 
   // ── 密钥列表操作 ──
   $('keys-list').addEventListener('click', (e) => {

@@ -641,6 +641,35 @@ function registerIpcHandlers(ipcMain, getWindow) {
   // 扫描本机 Kiro 凭证
   ipcMain.handle('kiro:scanCredential', () => scanKiroCredential());
 
+  // Kiro 账号凭证管理（用量/超额/格式转换）
+  const kiroCreds = require('./launcher/kiro-credentials');
+  const CREDS_DIR = path.join(LAUNCHER_ROOT, 'creds');
+  ipcMain.handle('kiro:listCredentials', () => kiroCreds.listCredentials(CREDS_DIR));
+  ipcMain.handle('kiro:fetchUsage', (_e, accountId) => {
+    const accounts = kiroCreds.listCredentials(CREDS_DIR);
+    const account = accounts.find((a) => a.id === accountId || a.filePath === accountId);
+    if (!account) throw new Error('账号不存在');
+    return kiroCreds.fetchUsage(account);
+  });
+  ipcMain.handle('kiro:fetchOverage', (_e, accountId) => {
+    const accounts = kiroCreds.listCredentials(CREDS_DIR);
+    const account = accounts.find((a) => a.id === accountId || a.filePath === accountId);
+    if (!account) throw new Error('账号不存在');
+    return kiroCreds.fetchOverage(account);
+  });
+  ipcMain.handle('kiro:setOverage', (_e, accountId, enabled) => {
+    const accounts = kiroCreds.listCredentials(CREDS_DIR);
+    const account = accounts.find((a) => a.id === accountId || a.filePath === accountId);
+    if (!account) throw new Error('账号不存在');
+    return kiroCreds.setOverage(account, enabled);
+  });
+  ipcMain.handle('kiro:saveCredential', (_e, jsonStr) => kiroCreds.saveCredential(CREDS_DIR, jsonStr));
+  ipcMain.handle('kiro:deleteCredential', (_e, fileId) => kiroCreds.deleteCredential(fileId));
+  ipcMain.handle('kiro:getProxy', () => {
+    const { detectProxy } = require('./launcher/proxy');
+    return detectProxy() || null;
+  });
+
   // 多 key 管理
   ipcMain.handle('keys:read', () => readKeys());
   ipcMain.handle('keys:add', (_e, value, label) => addKey(value, label));

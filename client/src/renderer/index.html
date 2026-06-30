@@ -66,31 +66,66 @@
           <span class="mode-tab-name">本地 9Router</span>
           <span class="mode-tab-sub">用自己的账号 · 多账号路由</span>
         </button>
+        <button class="mode-tab" id="tab-mcp" data-mode="mcp">
+          <span class="mode-tab-name">MCP</span>
+          <span class="mode-tab-sub">工具扩展配置</span>
+        </button>
+        <button class="mode-tab" id="tab-credentials" data-mode="credentials">
+          <span class="mode-tab-name">账号凭证</span>
+          <span class="mode-tab-sub">Kiro 用量 · 超额管理</span>
+        </button>
       </div>
 
-      <div class="mcp-card">
-        <div class="mcp-head">
-          <div>
-            <div class="mcp-title">MCP</div>
-            <div class="mcp-sub" id="mcp-status">读取中</div>
+      <!-- 视图：MCP 配置 -->
+      <div id="view-mcp" hidden>
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <h2>MCP 工具扩展</h2>
+              <div class="mcp-sub" id="mcp-status">读取中</div>
+            </div>
+            <button class="btn-primary btn-mcp-apply" id="btn-mcp-apply">应用</button>
           </div>
-          <button class="btn-primary btn-mcp-apply" id="btn-mcp-apply">应用</button>
+          <div class="mcp-options">
+            <label class="mcp-option">
+              <input type="checkbox" id="mcp-playwright" />
+              <span>
+                <strong>Playwright</strong>
+                <small>浏览器自动化</small>
+              </span>
+            </label>
+            <label class="mcp-option">
+              <input type="checkbox" id="mcp-batch" />
+              <span>
+                <strong>Batch</strong>
+                <small>本机 SSE · 3179</small>
+              </span>
+            </label>
+          </div>
         </div>
-        <div class="mcp-options">
-          <label class="mcp-option">
-            <input type="checkbox" id="mcp-playwright" />
-            <span>
-              <strong>Playwright</strong>
-              <small>浏览器自动化</small>
-            </span>
-          </label>
-          <label class="mcp-option">
-            <input type="checkbox" id="mcp-batch" />
-            <span>
-              <strong>Batch</strong>
-              <small>本机 SSE · 3179</small>
-            </span>
-          </label>
+      </div>
+
+      <!-- 视图：账号凭证 -->
+      <div id="view-credentials" hidden>
+        <div class="card">
+          <div class="card-head">
+            <h2>Kiro 账号凭证</h2>
+            <div class="cred-actions">
+              <span class="proxy-indicator" id="proxy-indicator" title="代理状态">⏳</span>
+              <button class="btn-primary" id="btn-cred-refresh">刷新用量</button>
+              <button class="btn-secondary" id="btn-cred-add">添加凭证</button>
+            </div>
+          </div>
+          <div class="cred-list" id="cred-list"></div>
+          <!-- 添加凭证输入区（默认隐藏） -->
+          <div class="cred-add-panel" id="cred-add-panel" hidden>
+            <textarea id="cred-add-json" class="cred-add-textarea" rows="8" placeholder="粘贴凭证 JSON 内容…" spellcheck="false"></textarea>
+            <div class="cred-add-actions">
+              <button class="btn-primary" id="btn-cred-save">保存</button>
+              <button class="btn-secondary" id="btn-cred-cancel">取消</button>
+            </div>
+          </div>
+          <div class="msg" id="msg-cred"></div>
         </div>
       </div>
 
