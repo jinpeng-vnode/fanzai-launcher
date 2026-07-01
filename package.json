@@ -6,12 +6,11 @@
   "author": "fanzai",
   "private": true,
   "scripts": {
-    "start": "electron .",
     "dev": "electron . --dev",
-    "pack": "electron-builder --dir",
-    "dist": "electron-builder",
-    "protect": "node scripts/protect-build.js",
-    "dist:protected": "npm run protect && electron-builder --config electron-builder.protected.yml"
+    "dist:win": "electron-builder --win portable",
+    "dist:mac": "electron-builder --mac zip",
+    "dist:win-setup": "electron-builder --win nsis",
+    "dist:mac-dmg": "electron-builder --mac dmg"
   },
   "build": {
     "appId": "com.fanzai.client",
@@ -35,6 +34,11 @@
     },
     "portable": {
       "artifactName": "饭仔客户端.exe"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "饭仔客户端-Setup.exe"
     },
     "mac": {
       "target": [
