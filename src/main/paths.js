@@ -1,6 +1,6 @@
-// 解析启动包根目录 — 向上查找含 package.json（且 name=fanzai-client）的目录
+// 解析启动包根目录 — 向上查找含 scripts/ 目录的位置
+// .app 打包后内部只有 src/，不会有 scripts/，所以不会误命中 .app 内部
 // dev 模式：src/main/ 上两级即根目录
-// 打包后：portable exe 解压目录，同样向上找
 const path = require('path');
 const fs = require('fs');
 
@@ -11,7 +11,7 @@ function resolveLauncherRoot() {
   }
   let dir = __dirname;
   for (let i = 0; i < 8; i++) {
-    if (fs.existsSync(path.join(dir, 'package.json'))) return dir;
+    if (fs.existsSync(path.join(dir, 'scripts'))) return dir;
     const parent = path.dirname(dir);
     if (parent === dir) break;
     dir = parent;

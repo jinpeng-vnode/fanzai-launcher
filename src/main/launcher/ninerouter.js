@@ -148,8 +148,14 @@ function getProcessCommandLine(pid) {
     }
   }
 
+  // Linux 优先读 /proc（快）；macOS 无 /proc，回退到 ps。-ww 禁止命令行截断。
   try {
     return fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8').replace(/\0/g, ' ').trim();
+  } catch {}
+  try {
+    return execFileSync('ps', ['-ww', '-p', String(pid), '-o', 'command='], {
+      encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 5000,
+    }).trim();
   } catch {
     return '';
   }
@@ -160,8 +166,17 @@ function isManagedRouterProcess(pid, runtimeDir) {
   if (!cmd) return false;
   const runtime = path.resolve(runtimeDir).toLowerCase();
   const normalized = cmd.toLowerCase().replace(/\//g, '\\');
-  return normalized.includes(runtime.replace(/\//g, '\\')) &&
-    /node_modules[\\/]9router[\\/](cli\.js|app[\\/]server\.js)/i.test(cmd);
+  // Linux（/proc）能拿到完整命令行：校验 runtime 路径 + 9router 脚本，最严格。
+  if (normalized.includes(runtime.replace(/\//g, '\\')) &&
+    /node_modules[\\/]9router[\\/](cli\.js|app[\\/]server\.js)/i.test(cmd)) {
+    return true;
+  }
+  // macOS：9router 是 Next.js standalone，会把进程标题改写成 "next-server (vX.Y.Z)"，
+  // ps 拿不到原始命令行与路径。回退到匹配该标题——配合调用方的端口健康检查已足够可靠。
+  if (os.platform() === 'darwin' && /next-server/i.test(cmd)) {
+    return true;
+  }
+  return false;
 }
 
 function hasManagedRouter(runtimeDir) {
