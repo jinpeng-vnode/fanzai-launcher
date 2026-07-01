@@ -25,14 +25,13 @@ if [ -n "$APP" ] && [ -d "$APP" ]; then
 fi
 
 # 2. 回退：dev 模式用 electron 直接跑源码
-if [ -x "./client/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron" ]; then
-    cd client
+if [ -x "./node_modules/electron/dist/Electron.app/Contents/MacOS/Electron" ]; then
     FANZAI_LAUNCHER_ROOT="$ROOT" ./node_modules/electron/dist/Electron.app/Contents/MacOS/Electron . &
     exit 0
 fi
 
 # 3. 都没有：提示先构建
 echo "[错误] 未找到 GUI 客户端，请先构建："
-echo "       cd client && npm install && npm run pack"
+echo "       npm install && npm run pack"
 echo "       （构建产物在 runtime/electron-app/ 下）"
 exit 1

@@ -2,8 +2,8 @@
 // make-dist.mjs — 构建 GUI 客户端并打包成可分发 zip（跨平台，自动识别当前系统）
 //
 // 用法：
-//   node client/scripts/make-dist.mjs            # 构建 + 打包当前平台
-//   node client/scripts/make-dist.mjs --no-build # 跳过构建，直接用已有产物打包
+//   node scripts/make-dist.mjs            # 构建 + 打包当前平台
+//   node scripts/make-dist.mjs --no-build # 跳过构建，直接用已有产物打包
 //
 // 产出：
 //   Windows → dist-packages/饭仔客户端-win-x64.zip   （内含 portable exe + 启动.bat）
@@ -24,8 +24,7 @@ import { join, dirname, basename } from 'node:path';
 import os from 'node:os';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const CLIENT_DIR = join(__dirname, '..');          // client/
-const ROOT = join(CLIENT_DIR, '..');               // 启动包根
+const ROOT = join(__dirname, '..');                 // 启动包根（scripts/ 的上一级）
 const OUT_DIR = join(ROOT, 'dist-packages');       // zip 输出目录
 
 const PLATFORM = os.platform();                    // win32 / darwin
@@ -37,8 +36,8 @@ const NPMMIRROR = 'https://registry.npmmirror.com/-/binary';
 function log(msg) { console.log(`[make-dist] ${msg}`); }
 function fail(msg) { console.error(`[make-dist] ✗ ${msg}`); process.exit(1); }
 
-// 在 client/ 下跑 npm 脚本，带上 electron 镜像环境（避免二进制下载卡住）
-function run(cmd, args, cwd = CLIENT_DIR) {
+// 在根目录下跑 npm 脚本，带上 electron 镜像环境（避免二进制下载卡住）
+function run(cmd, args, cwd = ROOT) {
   log(`$ ${cmd} ${args.join(' ')}`);
   execFileSync(cmd, args, {
     cwd,
@@ -93,9 +92,9 @@ mkdirSync(OUT_DIR, { recursive: true });
 
 // 三平台共用的分发文件（保持启动脚本所需的相对路径）
 const commonItems = [
-  { from: 'import_kiro.mjs', to: 'import_kiro.mjs' },
-  { from: 'scan_kiro_credential.mjs', to: 'scan_kiro_credential.mjs' },
-  { from: 'init.mjs', to: 'init.mjs' },
+  { from: 'scripts/import_kiro.mjs', to: 'scripts/import_kiro.mjs' },
+  { from: 'scripts/scan_kiro_credential.mjs', to: 'scripts/scan_kiro_credential.mjs' },
+  { from: 'scripts/init.mjs', to: 'scripts/init.mjs' },
   { from: 'lib', to: 'lib' },
   { from: '.mcp.json', to: '.mcp.json' },
   { from: 'README.md', to: 'README.md' },

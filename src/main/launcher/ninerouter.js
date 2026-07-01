@@ -1,8 +1,8 @@
-// 9router 全流程编排 — 对齐 start.ps1 / start.sh 的 9 步，三平台共用
-// 步骤：装包 → 初始化DB → 导凭证 → 建key → 种组合 → 启动 → 健康检查 → 写配置
+// 9router 全流程编排 — 三平台共用
+// 步骤：装包 → 初始化DB → 建key → 种组合 → 启动 → 健康检查 → 写配置
+// 凭证导入改为按需触发（用户在凭证 tab 点「导入到 9router」按钮）
 //
 // 复用现成纯 Node 资产：
-//   - import_kiro.mjs（刷新token+写库+配代理）
 //   - sql/mkkey.mjs、sql/seedcombos.mjs（直写 sqlite）
 // 9router 本身从 npm 源拉最新版安装（上游不再需要我们维护）。
 const fs = require('fs');

@@ -1,5 +1,5 @@
-// 解析启动包根目录 — 向上查找含 setup-vscode.ps1 的目录
-// dev 模式：client/ 的上一级即启动包根
+// 解析启动包根目录 — 向上查找含 package.json（且 name=fanzai-client）的目录
+// dev 模式：src/main/ 上两级即根目录
 // 打包后：portable exe 解压目录，同样向上找
 const path = require('path');
 const fs = require('fs');
@@ -11,13 +11,13 @@ function resolveLauncherRoot() {
   }
   let dir = __dirname;
   for (let i = 0; i < 8; i++) {
-    if (fs.existsSync(path.join(dir, 'setup-vscode.ps1'))) return dir;
+    if (fs.existsSync(path.join(dir, 'package.json'))) return dir;
     const parent = path.dirname(dir);
     if (parent === dir) break;
     dir = parent;
   }
-  // 兜底：client 的上一级
-  return path.join(__dirname, '..', '..', '..');
+  // 兜底：src/main/ 上两级
+  return path.join(__dirname, '..', '..');
 }
 
 const LAUNCHER_ROOT = resolveLauncherRoot();
@@ -25,7 +25,6 @@ const RUNTIME_DIR = path.join(LAUNCHER_ROOT, 'runtime');
 const CONFIG_PATH = path.join(RUNTIME_DIR, '.launcher.json');
 const KEYS_PATH = path.join(RUNTIME_DIR, 'keys.json');
 const MCP_SETTINGS_PATH = path.join(RUNTIME_DIR, 'mcp-settings.json');
-const SETUP_VSCODE_PS1 = path.join(LAUNCHER_ROOT, 'setup-vscode.ps1');
 const LOG_PATH = path.join(RUNTIME_DIR, 'client.log');
 
-module.exports = { LAUNCHER_ROOT, RUNTIME_DIR, CONFIG_PATH, KEYS_PATH, MCP_SETTINGS_PATH, SETUP_VSCODE_PS1, LOG_PATH };
+module.exports = { LAUNCHER_ROOT, RUNTIME_DIR, CONFIG_PATH, KEYS_PATH, MCP_SETTINGS_PATH, LOG_PATH };

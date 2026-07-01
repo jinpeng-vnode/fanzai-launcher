@@ -17,7 +17,7 @@
     "appId": "com.fanzai.client",
     "productName": "饭仔客户端",
     "directories": {
-      "output": "../runtime/electron-app"
+      "output": "runtime/electron-app"
     },
     "files": [
       "src/**/*",

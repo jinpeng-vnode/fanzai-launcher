@@ -1,11 +1,7 @@
 # 构建产物
-client/.protected-src/
-client/node_modules/
-runtime/electron-app/
-runtime/*.zip
-runtime/*.tar.gz
-runtime/node/
-runtime/9router/
+.protected-src/
+node_modules/
+runtime/
 
 # 分发打包产物（zip 体积大，不进库）
 dist-packages/
