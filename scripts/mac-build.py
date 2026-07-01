@@ -106,7 +106,7 @@ fi
         client.close()
         sys.exit(1)
 
-    # 3. 解压源码 + npm install + 构建
+    # 3. 解压源码 + npm install + 构建 + 打绿色包
     node_bin = f"{REMOTE_DIR}/{NODE_PKG}/bin"
     build = f"""
 export PATH="{node_bin}:$PATH"
@@ -116,15 +116,16 @@ echo '=== npm install ==='
 npm install --no-audit --no-fund 2>&1
 echo '=== electron-builder (mac arm64) ==='
 npx electron-builder --mac --arm64 2>&1
-echo '=== 构建产物 ==='
-ls -lh {REMOTE_DIR}/../electron-app 2>/dev/null || ls -lh ../electron-app 2>/dev/null
-ls -lh dist 2>/dev/null
+echo '=== 打绿色分发包 ==='
+node scripts/make-dist.mjs --no-build 2>&1
+echo '=== 产物 ==='
+ls -lh dist-packages/ 2>/dev/null
 """
     code = run_stream(client, build, timeout=2400)
     print(f"\n=== 构建退出码: {code} ===")
 
-    # 4. 找产物目录并回传（只搜构建目录）
-    _, out, _ = _run_cap(client, f"find {REMOTE_DIR}/runtime/electron-app -maxdepth 1 \\( -name '*.dmg' -o -name '*.zip' \\) 2>/dev/null")
+    # 4. 找产物并回传（绿色包 zip + dmg）
+    _, out, _ = _run_cap(client, f"find {REMOTE_DIR}/dist-packages -maxdepth 1 -name '*.zip' 2>/dev/null; find {REMOTE_DIR}/runtime/electron-app -maxdepth 1 -name '*.dmg' 2>/dev/null")
     print("\n找到的产物文件:")
     print(out or "(无)")
 
