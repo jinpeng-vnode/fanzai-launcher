@@ -7,9 +7,10 @@
   "private": true,
   "scripts": {
     "dev": "electron . --dev",
-    "pack:win:green": "electron-builder --win portable",
-    "pack:mac:green": "electron-builder --mac zip",
-    "pack:win:setup": "electron-builder --win nsis",
+    "prekill": "taskkill /IM \"饭仔客户端.exe\" /T /F 2>nul || echo ok",
+    "pack:win:green": "npm run prekill && node scripts/make-dist.mjs",
+    "pack:mac:green": "node scripts/make-dist.mjs",
+    "pack:win:setup": "npm run prekill && electron-builder --win nsis",
     "pack:mac:dmg": "electron-builder --mac dmg"
   },
   "build": {

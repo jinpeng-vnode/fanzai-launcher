@@ -101,7 +101,7 @@ const commonItems = [
 ];
 
 if (PLATFORM === 'win32') {
-  if (!noBuild) run('npm', ['run', 'dist']);
+  if (!noBuild) run('npx', ['electron-builder', '--win', 'portable']);
   const exe = join(ROOT, 'runtime', 'electron-app', '饭仔客户端.exe');
   if (!existsSync(exe)) fail('未找到 runtime/electron-app/饭仔客户端.exe，请先构建');
 
@@ -117,7 +117,7 @@ if (PLATFORM === 'win32') {
   log(`✓ Windows 分发包：${zipPath}（${humanSize(zipPath)}）`);
 
 } else if (PLATFORM === 'darwin') {
-  if (!noBuild) run('npm', ['run', 'pack']);
+  if (!noBuild) run('npx', ['electron-builder', '--mac', 'zip']);
   const appDirParent = join(ROOT, 'runtime', 'electron-app', `mac-${ARCH}`);
   if (!existsSync(appDirParent)) fail(`未找到 ${appDirParent}，请先构建`);
   const app = readdirSync(appDirParent).find((f) => f.endsWith('.app'));
