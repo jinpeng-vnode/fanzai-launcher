@@ -7,10 +7,10 @@
   "private": true,
   "scripts": {
     "dev": "electron . --dev",
-    "dist:win": "electron-builder --win portable",
-    "dist:mac": "electron-builder --mac zip",
-    "dist:win-setup": "electron-builder --win nsis",
-    "dist:mac-dmg": "electron-builder --mac dmg"
+    "pack:win:green": "electron-builder --win portable",
+    "pack:mac:green": "electron-builder --mac zip",
+    "pack:win:setup": "electron-builder --win nsis",
+    "pack:mac:dmg": "electron-builder --mac dmg"
   },
   "build": {
     "appId": "com.fanzai.client",
