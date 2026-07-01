@@ -14,7 +14,7 @@ HOST = "192.168.3.9"
 USER = "jinpeng"
 PASSWORD = "2684"
 
-REMOTE_DIR = "/Users/jinpeng/fanzai-build"
+REMOTE_DIR = "/tmp/fanzai-build"
 LOCAL_TGZ = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fanzai-client-src.tgz")
 NODE_VER = "v24.9.0"
 NODE_PKG = f"node-{NODE_VER}-darwin-arm64"
@@ -123,10 +123,8 @@ ls -lh dist 2>/dev/null
     code = run_stream(client, build, timeout=2400)
     print(f"\n=== 构建退出码: {code} ===")
 
-    # 4. 找产物目录并回传（package.json 里 output=../runtime/electron-app）
-    #    在远端 REMOTE_DIR 视角，output 是 /Users/jinpeng/runtime/electron-app
-    find_out = f"find {REMOTE_DIR}/.. -maxdepth 3 -name '*.dmg' -o -maxdepth 3 -name '饭仔*.zip' 2>/dev/null | head -20"
-    _, out, _ = _run_cap(client, "find /Users/jinpeng -maxdepth 4 \\( -name '*.dmg' -o -name '饭仔客户端*.zip' \\) 2>/dev/null")
+    # 4. 找产物目录并回传（只搜构建目录）
+    _, out, _ = _run_cap(client, f"find {REMOTE_DIR}/runtime/electron-app -maxdepth 1 \\( -name '*.dmg' -o -name '*.zip' \\) 2>/dev/null")
     print("\n找到的产物文件:")
     print(out or "(无)")
 
