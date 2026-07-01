@@ -35,6 +35,24 @@
     },
     "portable": {
       "artifactName": "饭仔客户端.exe"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.developer-tools",
+      "artifactName": "饭仔客户端-${arch}.${ext}"
     }
   },
   "devDependencies": {

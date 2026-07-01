@@ -272,9 +272,14 @@ function runExtensionCli(command, args, env) {
   });
 }
 
-async function installVsCodeExtension(vsc, extensionId, label, proxy, log = () => {}, onProgress = null) {
-  // 每次启动都用 --install-extension --force：VS Code 会安装或更新到 Marketplace 最新版。
-  // 已是最新则是个快速 no-op；离线失败时磁盘上已有的旧版仍可用，不阻断启动。
+async function installVsCodeExtension(vsc, extensionId, label, proxy, log = () => {}, onProgress = null, checkUpdate = false) {
+  // 快速启动（checkUpdate=false）：磁盘上已有该扩展就直接复用，跳过联网的 Marketplace 检查。
+  // 检查更新（checkUpdate=true）：用 --install-extension --force 联网安装/更新到最新版。
+  // 首次启动（未装）无论哪种模式都会联网安装一次。
+  if (!checkUpdate && hasExtension(vsc, extensionId)) {
+    log(`${label} 扩展已就绪（复用，跳过更新检查）`);
+    return;
+  }
   log(`检查/更新 ${label} 扩展…`);
   try {
     onProgress && onProgress({ title: `安装 ${label} 扩展`, phase: 'install', percent: null, label: '正在检查更新…' });
@@ -305,12 +310,12 @@ async function installVsCodeExtension(vsc, extensionId, label, proxy, log = () =
 }
 
 // 装 Claude Code 扩展（用 CLI 入口，避免弹出 GUI 窗口）
-async function installExtension(vsc, proxy, log = () => {}, onProgress = null) {
-  await installVsCodeExtension(vsc, CLAUDE_EXT_ID, 'Claude Code', proxy, log, onProgress);
+async function installExtension(vsc, proxy, log = () => {}, onProgress = null, checkUpdate = false) {
+  await installVsCodeExtension(vsc, CLAUDE_EXT_ID, 'Claude Code', proxy, log, onProgress, checkUpdate);
 }
 
-async function installCodexExtension(vsc, proxy, log = () => {}, onProgress = null) {
-  await installVsCodeExtension(vsc, CODEX_EXT_ID, 'Codex', proxy, log, onProgress);
+async function installCodexExtension(vsc, proxy, log = () => {}, onProgress = null, checkUpdate = false) {
+  await installVsCodeExtension(vsc, CODEX_EXT_ID, 'Codex', proxy, log, onProgress, checkUpdate);
 }
 
 function spawnVscode(vsc, args, env) {

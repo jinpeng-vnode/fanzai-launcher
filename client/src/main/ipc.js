@@ -470,6 +470,18 @@ async function launchVscodeCodex(getWindow) {
   } catch (e) { return handleLaunchError('Codex 启动失败', e); }
 }
 
+// 检查更新（手动触发）：联网检查并升级 npm 包 + VS Code 扩展
+async function checkForUpdates(getWindow) {
+  log.step('=== 检查更新 ===');
+  try {
+    return await launcher.checkForUpdates({
+      runtimeDir: RUNTIME_DIR, launcherRoot: LAUNCHER_ROOT,
+      onLog: makeLogger(getWindow),
+      onProgress: makeProgress(getWindow),
+    });
+  } catch (e) { return handleLaunchError('检查更新失败', e); }
+}
+
 function normalizeManualConfig(cfg = {}) {
   // 统一存"干净基址"（去掉用户可能手填的 /v1），启动时按工具按需追加
   const baseUrl = stripV1(cfg.baseUrl) || DEFAULT_PUBLIC_BASE_URL;
@@ -631,6 +643,7 @@ function registerIpcHandlers(ipcMain, getWindow) {
   ipcMain.handle('vscode:launchCodex', () => launchVscodeCodex(getWindow));     // Codex
   ipcMain.handle('vscode:launchManualClaude', (_e, cfg) => launchManualClaude(getWindow, cfg));
   ipcMain.handle('vscode:launchManualCodex', (_e, cfg) => launchManualCodex(getWindow, cfg));
+  ipcMain.handle('update:check', () => checkForUpdates(getWindow));              // 手动检查更新
   ipcMain.handle('manual:models', (_e, cfg) => fetchManualModels(cfg));
   ipcMain.handle('manual:testModel', (_e, cfg) => testManualModel(cfg));
   // 只起本地 9router（不开 VS Code）
@@ -665,6 +678,11 @@ function registerIpcHandlers(ipcMain, getWindow) {
   });
   ipcMain.handle('kiro:saveCredential', (_e, jsonStr) => kiroCreds.saveCredential(CREDS_DIR, jsonStr));
   ipcMain.handle('kiro:deleteCredential', (_e, fileId) => kiroCreds.deleteCredential(fileId));
+  ipcMain.handle('kiro:setEnabled', (_e, fileId, enabled) => kiroCreds.setEnabled(fileId, enabled));
+  // 一键导入 creds/ 到运行中的 9router（调其 REST API，热生效、可重复）
+  ipcMain.handle('kiro:importToRouter', () =>
+    launcher.importCredentials({ runtimeDir: RUNTIME_DIR, credsDir: CREDS_DIR })
+  );
   ipcMain.handle('kiro:getProxy', () => {
     const { detectProxy } = require('./launcher/proxy');
     return detectProxy() || null;

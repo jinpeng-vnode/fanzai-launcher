@@ -501,15 +501,26 @@ function sanitize(s) {
 
 function saveCredential(credsDir, jsonStr) {
   // 只验证是合法 JSON；不校验凭证格式——任何 JSON 都原样保存。
+  // 如果是数组则自动拆分成多个独立文件（每条一个），保证导入时每个文件是单对象。
   const data = JSON.parse(jsonStr);
-
   fs.mkdirSync(credsDir, { recursive: true });
 
-  // 文件名按账号标识生成（灵活取 email/token），取不到就用时间戳。
+  if (Array.isArray(data)) {
+    const results = [];
+    for (const item of data) {
+      if (!item || typeof item !== 'object') continue;
+      const label = deriveLabel(item);
+      const filePath = path.join(credsDir, `kiro-cred_${label}.json`);
+      fs.writeFileSync(filePath, JSON.stringify(item, null, 2) + '\n', 'utf8');
+      results.push(filePath);
+    }
+    return { ok: true, count: results.length, paths: results };
+  }
+
   const label = deriveLabel(data);
   const filePath = path.join(credsDir, `kiro-cred_${label}.json`);
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2) + '\n', 'utf8');
-  return { ok: true, path: filePath };
+  return { ok: true, count: 1, path: filePath };
 }
 
 function deleteCredential(filePath) {
@@ -518,6 +529,192 @@ function deleteCredential(filePath) {
   }
   fs.unlinkSync(filePath);
   return { ok: true };
+}
+
+// 启用/禁用账号：写回 json 文件的 enabled 字段（列表用它决定灰化与是否参与）
+function setEnabled(filePath, enabled) {
+  if (!filePath || !fs.existsSync(filePath)) {
+    throw new Error('凭证文件不存在');
+  }
+  const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  data.enabled = !!enabled;
+  // 若文件原本用 disabled 表达状态，一并同步，避免两个字段互相矛盾
+  if ('disabled' in data) data.disabled = !enabled;
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2) + '\n', 'utf8');
+  return { ok: true, enabled: !!enabled };
+}
+
+// --- 导入到 9router（调本地 REST API，热生效、可重复导入、由 9router 自己 upsert）---
+
+// 代理地址强制带协议前缀（9router 解析无前缀的 host:port 会报 Invalid URL protocol）
+function normalizeProxyUrl(url) {
+  url = (url || '').trim();
+  if (url && !/^(https?|socks5?):\/\//.test(url)) url = 'http://' + url;
+  return url;
+}
+
+// 直连本地 9router 发请求（本机回环，绝不走代理）。
+// cliToken 用于 9router 管理 API 鉴权（x-9r-cli-token 头，非 sk-9r key——后者只对 /v1 推理端点有效）。
+function localReq(baseUrl, method, pathName, bodyObj, cliToken) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(baseUrl);
+    const body = bodyObj != null ? JSON.stringify(bodyObj) : null;
+    const headers = { 'Accept': 'application/json' };
+    if (body != null) {
+      headers['Content-Type'] = 'application/json';
+      headers['Content-Length'] = Buffer.byteLength(body);
+    }
+    if (cliToken) headers['x-9r-cli-token'] = cliToken;
+    const req = http.request(
+      {
+        hostname: u.hostname,
+        port: u.port,
+        path: pathName,
+        method,
+        headers,
+        timeout: 60000,
+      },
+      (res) => {
+        let data = '';
+        res.on('data', (c) => { data += c; });
+        res.on('end', () => {
+          let parsed = null;
+          try { parsed = data ? JSON.parse(data) : {}; } catch { /* 保留 raw */ }
+          resolve({ status: res.statusCode, data: parsed, raw: data });
+        });
+      }
+    );
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error('9router 请求超时')); });
+    if (body != null) req.write(body);
+    req.end();
+  });
+}
+
+// 确保 9router 里有指向 proxyUrl 的代理池，返回其 id（已存在则复用，对齐旧 ensureProxyPool 行为）。
+async function ensureProxyPool(baseUrl, cliToken, proxyUrl) {
+  const target = normalizeProxyUrl(proxyUrl);
+  if (!target) return null;
+
+  // 先查现有池去重（GET 返回 { proxyPools: [...] }）
+  try {
+    const list = await localReq(baseUrl, 'GET', '/api/proxy-pools', null, cliToken);
+    const pools = (list.data && list.data.proxyPools) || [];
+    for (const p of pools) {
+      const url = p.proxyUrl || (p.data && p.data.proxyUrl);
+      if (url && normalizeProxyUrl(url) === target) return p.id;
+    }
+  } catch { /* 查不到就继续创建 */ }
+
+  // 创建新池（POST 返回 { proxyPool: { id, ... } } 状态 201）
+  const resp = await localReq(baseUrl, 'POST', '/api/proxy-pools', {
+    name: target,
+    proxyUrl: target,
+    noProxy: '',
+    isActive: true,
+    strictProxy: false,
+  }, cliToken);
+  if ((resp.status === 200 || resp.status === 201) && resp.data && resp.data.proxyPool) {
+    return resp.data.proxyPool.id;
+  }
+  throw new Error((resp.data && resp.data.error) || `创建代理池失败 HTTP ${resp.status}`);
+}
+
+// 把 creds/*.json 逐个推给运行中的 9router。baseUrl 形如 http://127.0.0.1:20128。
+// 走 dashboard 同款流程：import-cli-proxy 原样导入凭证（支持 social / external_idp），
+// 再把连接关联到自动创建的代理池（对齐旧 import_kiro.mjs 的代理自动配置）。
+async function importToRouter(baseUrl, credsDir, cliToken, proxyUrl) {
+  if (!baseUrl) throw new Error('缺少 9router 地址');
+  if (!fs.existsSync(credsDir)) {
+    return { ok: false, imported: 0, failed: 0, skipped: 0, details: [], message: '未找到 creds 目录，无凭证可导入' };
+  }
+
+  const files = fs.readdirSync(credsDir).filter((f) => f.endsWith('.json') && !f.startsWith('turn_'));
+  const details = [];
+  let imported = 0, failed = 0, skipped = 0;
+
+  // 先确保代理池就绪（有代理才建）。失败不阻断导入，仅记提示。
+  let proxyPoolId = null;
+  let proxyNote = '';
+  if (proxyUrl) {
+    try {
+      proxyPoolId = await ensureProxyPool(baseUrl, cliToken, proxyUrl);
+    } catch (e) {
+      proxyNote = `（代理池配置失败：${e.message}）`;
+    }
+  }
+
+  for (const file of files) {
+    const filePath = path.join(credsDir, file);
+    let raw;
+    try {
+      raw = fs.readFileSync(filePath, 'utf8');
+      JSON.parse(raw); // 仅校验是合法 JSON；内容原样交给 9router 解析
+    } catch (e) {
+      skipped++;
+      details.push({ file, status: 'skipped', reason: 'JSON 解析失败' });
+      continue;
+    }
+
+    const data = JSON.parse(raw);
+    if (Array.isArray(data)) {
+      skipped++;
+      details.push({ file, status: 'skipped', reason: '凭证文件是数组格式，请先在「添加凭证」里重新导入以自动拆分' });
+      continue;
+    }
+    const email = getField(data, ['email']) || extractEmailFromJwt(getField(data, ['accessToken', 'access_token']) || '') || file;
+
+    try {
+      // 9router 对 idc 和 external_idp 账号提供两个不同的导入端点：
+      //   - import-cli-proxy：仅支持 external_idp（有 token_endpoint）
+      //   - import：支持 idc（有 clientId+clientSecret，服务端自己刷新）
+      // 我们按字段判断走哪个，不做任何额外操作，9router 自己处理刷新。
+      const hasTokenEndpoint = !!(getField(data, ['tokenEndpoint', 'token_endpoint']));
+      let resp;
+      if (hasTokenEndpoint) {
+        resp = await localReq(baseUrl, 'POST', '/api/oauth/kiro/import-cli-proxy', { json: raw }, cliToken);
+      } else {
+        resp = await localReq(baseUrl, 'POST', '/api/oauth/kiro/import', {
+          refreshToken: getField(data, ['refreshToken', 'refresh_token']) || '',
+          clientId: getField(data, ['clientId', 'client_id']) || '',
+          clientSecret: getField(data, ['clientSecret', 'client_secret']) || '',
+          region: getField(data, ['region']) || 'us-east-1',
+          authMethod: getField(data, ['authMethod', 'auth_method']) || 'idc',
+          profileArn: getField(data, ['profileArn', 'profile_arn']) || '',
+        }, cliToken);
+      }
+      if (resp.status !== 200 || !resp.data || !resp.data.success) {
+        failed++;
+        const reason = (resp.data && resp.data.error) || `HTTP ${resp.status}`;
+        details.push({ file, email, status: 'failed', reason });
+        continue;
+      }
+      const connId = resp.data.connection && resp.data.connection.id;
+
+      // 2. 关联代理池（PUT providers/{id}）
+      if (proxyPoolId && connId) {
+        try {
+          await localReq(baseUrl, 'PUT', `/api/providers/${connId}`, { proxyPoolId }, cliToken);
+        } catch { /* 关联失败不影响凭证已导入，忽略 */ }
+      }
+
+      imported++;
+      details.push({ file, email: (resp.data.connection && resp.data.connection.email) || email, status: 'ok' });
+    } catch (e) {
+      failed++;
+      details.push({ file, email, status: 'failed', reason: e.message });
+    }
+  }
+
+  const proxyMsg = proxyPoolId ? '，已配代理池' : (proxyUrl ? proxyNote : '');
+  return {
+    ok: failed === 0 && imported > 0,
+    imported,
+    failed,
+    skipped,
+    details,
+    message: `导入完成：成功 ${imported}，失败 ${failed}，跳过 ${skipped}${proxyMsg}`,
+  };
 }
 
 // --- Proxy check for API calls ---
@@ -537,4 +734,6 @@ module.exports = {
   setOverage,
   saveCredential,
   deleteCredential,
+  setEnabled,
+  importToRouter,
 };

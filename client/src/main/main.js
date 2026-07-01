@@ -45,10 +45,10 @@ process.on('unhandledRejection', (reason) => {
 function createWindow() {
   log.step('创建主窗口');
   mainWindow = new BrowserWindow({
-    width: 980,
-    height: 680,
-    minWidth: 880,
-    minHeight: 600,
+    width: 1280,
+    height: 780,
+    minWidth: 1080,
+    minHeight: 680,
     show: false,
     frame: false,              // 无边框 — 自绘标题栏，配合暗色现代 UI
     titleBarStyle: 'hidden',

@@ -630,6 +630,25 @@ async function testModel() {
 // ============================================================
 
 // ── 启动 Claude Code（饭仔密钥） ──
+// ── 检查更新（手动触发）：升级 CLI + VS Code 扩展 ──
+async function checkForUpdates() {
+  const btn = $('btn-check-update');
+  btn.disabled = true;
+  const original = btn.textContent;
+  btn.textContent = '↻ 检查中…';
+  showLog();
+  try {
+    await window.api.checkUpdate();
+    btn.textContent = '✓ 已是最新';
+    setTimeout(() => { btn.textContent = original; }, 3000);
+  } catch (e) {
+    btn.textContent = original;
+    alert('检查更新失败：' + (e && e.message ? e.message : e));
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 async function launchRemoteClaude() {
   const k = activeKey();
   if (!k || isManualKey(k)) {
@@ -921,6 +940,10 @@ async function openLocalUrl(value) {
 // 账号凭证管理
 // ============================================================
 
+// 记录每个账号最近一次已知的超额状态（ENABLED/DISABLED/''），供开关按钮取反用。
+// 用文件路径当 key，避免把带反斜杠的路径塞进 CSS 选择器（Windows 下匹配不到）。
+const credOverageState = {};
+
 async function loadCredentials() {
   const list = $('cred-list');
   // 更新代理状态指示器
@@ -932,9 +955,9 @@ async function loadCredentials() {
       return;
     }
     list.innerHTML = accounts.map((a) => renderCredCard(a)).join('');
-    // 绑定超额开关事件
+    // 绑定超额开关事件（真实状态由 toggleOverage 内部查询后取反）
     list.querySelectorAll('[data-overage-toggle]').forEach((btn) => {
-      btn.onclick = () => toggleOverage(btn.getAttribute('data-overage-toggle'), btn.getAttribute('data-overage-status') === 'ENABLED');
+      btn.onclick = () => toggleOverage(btn.getAttribute('data-overage-toggle'));
     });
     // 绑定单个刷新按钮
     list.querySelectorAll('[data-refresh-usage]').forEach((btn) => {
@@ -944,9 +967,20 @@ async function loadCredentials() {
     list.querySelectorAll('[data-cred-delete]').forEach((btn) => {
       btn.onclick = () => deleteCredential(btn.getAttribute('data-cred-delete'));
     });
+    // 绑定启用/禁用开关
+    list.querySelectorAll('[data-cred-enable]').forEach((btn) => {
+      btn.onclick = () => toggleCredEnabled(btn.getAttribute('data-cred-enable'), btn.getAttribute('data-cred-enabled') === '1');
+    });
   } catch (e) {
     list.innerHTML = `<div class="keys-empty">加载失败：${e.message}</div>`;
   }
+}
+
+// 判断凭证 token 是否已过期（expiresAt 为 epoch 秒；无值视为未知，不标红）
+function isCredExpired(account) {
+  const exp = Number(account.expiresAt || 0);
+  if (!exp) return false;
+  return Math.floor(Date.now() / 1000) >= exp;
 }
 
 function renderCredCard(account) {
@@ -974,10 +1008,29 @@ function renderCredCard(account) {
       </div>
       <div class="cred-actions-row">
         <button class="btn-ghost" data-refresh-usage="${escAttr(fileId)}">刷新用量</button>
-        <button class="btn-ghost" data-overage-toggle="${escAttr(fileId)}" data-overage-status="">超额开关</button>
+        <button class="btn-ghost" id="cred-overage-${cssId(fileId)}" data-overage-toggle="${escAttr(fileId)}">超额：—</button>
+        <button class="btn-ghost" data-cred-enable="${escAttr(fileId)}" data-cred-enabled="${enabled ? '1' : '0'}">${enabled ? '禁用账号' : '启用账号'}</button>
       </div>
     </div>
   `;
+}
+
+// 更新某账号超额按钮的显示（开/关/未知），并记录状态。用稳定 DOM id 定位，绕开路径选择器问题。
+function updateOverageButton(fileId, status) {
+  const s = (status || '').toUpperCase();
+  credOverageState[fileId] = s;
+  const btn = document.getElementById(`cred-overage-${cssId(fileId)}`);
+  if (!btn) return;
+  if (s === 'ENABLED') {
+    btn.textContent = '超额：开';
+    btn.className = 'btn-ghost overage-on';
+  } else if (s === 'DISABLED') {
+    btn.textContent = '超额：关';
+    btn.className = 'btn-ghost overage-off';
+  } else {
+    btn.textContent = '超额：—';
+    btn.className = 'btn-ghost';
+  }
 }
 
 async function refreshSingleUsage(fileId) {
@@ -996,9 +1049,8 @@ async function refreshSingleUsage(fileId) {
         valEl.textContent = `${info.usageCurrent}/${info.usageLimit} (${pct}%) | ${info.subscriptionType || 'FREE'} | 超额: ${info.overageStatus || 'UNKNOWN'}`;
       }
     }
-    // 更新超额按钮状态
-    const btn = document.querySelector(`[data-overage-toggle="${fileId.replace(/"/g, '\\"')}"]`);
-    if (btn) btn.setAttribute('data-overage-status', info.overageStatus || '');
+    // 更新超额按钮状态（用稳定 DOM id，不再用含反斜杠的路径拼 CSS 选择器）
+    updateOverageButton(fileId, info.overageStatus);
   } catch (e) {
     if (el) {
       const valEl = el.querySelector('.cred-usage-value');
@@ -1008,6 +1060,9 @@ async function refreshSingleUsage(fileId) {
 }
 
 async function refreshAllCredUsage() {
+  const btn = $('btn-cred-refresh');
+  if (btn && btn.disabled) return;  // 防连点
+  if (btn) { btn.disabled = true; btn.textContent = '刷新中…'; }
   try {
     const accounts = await window.api.kiroListCredentials();
     // 并行刷新，互不影响（一个失败不阻塞其他）
@@ -1016,17 +1071,67 @@ async function refreshAllCredUsage() {
     );
   } catch (e) {
     setMsg('msg-cred', '刷新失败：' + e.message, 'err');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '刷新用量'; }
   }
 }
 
-async function toggleOverage(fileId, currentlyEnabled) {
-  const newState = !currentlyEnabled;
+async function toggleOverage(fileId) {
+  const btn = document.getElementById(`cred-overage-${cssId(fileId)}`);
+  if (btn && btn.disabled) return;
+  if (btn) { btn.disabled = true; btn.textContent = '处理中…'; }
   try {
+    // 先查真实状态再取反，修复"只能开不能关"（不依赖之前是否点过刷新）
+    let current = credOverageState[fileId];
+    if (current !== 'ENABLED' && current !== 'DISABLED') {
+      try {
+        const snap = await window.api.kiroFetchOverage(fileId);
+        current = (snap.status || '').toUpperCase();
+      } catch { current = 'DISABLED'; }  // 查不到按未开启处理
+    }
+    const newState = current !== 'ENABLED';
     const snap = await window.api.kiroSetOverage(fileId, newState);
-    setMsg('msg-cred', `超额已${snap.status === 'ENABLED' ? '开启' : '关闭'}`, 'ok');
-    refreshSingleUsage(fileId);
+    updateOverageButton(fileId, snap.status);
+    setMsg('msg-cred', `超额已${(snap.status || '').toUpperCase() === 'ENABLED' ? '开启' : '关闭'}`, 'ok');
   } catch (e) {
     setMsg('msg-cred', e.message || '操作失败', 'err');
+    updateOverageButton(fileId, credOverageState[fileId]);  // 恢复按钮显示
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+// 启用/禁用账号：写回 json 文件的 enabled 字段
+async function toggleCredEnabled(fileId, currentlyEnabled) {
+  try {
+    await window.api.kiroSetEnabled(fileId, !currentlyEnabled);
+    setMsg('msg-cred', `账号已${!currentlyEnabled ? '启用' : '禁用'}`, 'ok');
+    loadCredentials();
+  } catch (e) {
+    setMsg('msg-cred', e.message || '操作失败', 'err');
+  }
+}
+
+// 一键把 creds/ 凭证导入运行中的本地 9router
+async function importCredsToRouter() {
+  const btn = $('btn-cred-import');
+  if (btn && btn.disabled) return;
+  if (btn) { btn.disabled = true; btn.textContent = '导入中…'; }
+  setMsg('msg-cred', '正在导入到 9router（服务端刷新 token，可能需要十几秒）…', '');
+  try {
+    const r = await window.api.kiroImportToRouter();
+    const failLines = (r.details || [])
+      .filter((d) => d.status === 'failed')
+      .map((d) => `· ${d.email || d.file}：${d.reason}`)
+      .join('\n');
+    const msg = r.message + (failLines ? '\n' + failLines : '');
+    setMsg('msg-cred', msg, r.failed > 0 ? 'err' : 'ok');
+    updateProxyIndicator();
+    loadCredentials();
+  } catch (e) {
+    setMsg('msg-cred', '导入失败：' + (e.message || e), 'err');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '导入到 9router'; }
   }
 }
 
@@ -1101,6 +1206,7 @@ function bindEvents() {
 
   // ── 账号凭证操作 ──
   $('btn-cred-refresh').onclick = refreshAllCredUsage;
+  $('btn-cred-import').onclick = importCredsToRouter;
   $('btn-cred-add').onclick = () => {
     $('cred-list').hidden = true;
     $('cred-add-panel').hidden = false;
@@ -1147,6 +1253,7 @@ function bindEvents() {
     }
   };
   $('btn-launch').onclick = launchRemoteClaude;
+  $('btn-check-update').onclick = checkForUpdates;
 
   // ── 自定义API面板 ──
   $('btn-new-custom-empty').onclick = newCustomConfig;

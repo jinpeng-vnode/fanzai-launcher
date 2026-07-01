@@ -305,8 +305,6 @@ async function startNineRouter(opts) {
   const homeDir = path.join(runtimeDir, 'home');
   const dataDir = path.join(runtimeDir, 'data');
   const dbPath = path.join(dataDir, 'db', 'data.sqlite');
-  const credsDir = path.join(launcherRoot, 'creds');
-  const importMjs = path.join(launcherRoot, 'import_kiro.mjs');
 
   for (const d of [runtimeDir, npmPrefix, claudeCfg, homeDir, npmCache, path.dirname(dbPath)]) {
     fs.mkdirSync(d, { recursive: true });
@@ -353,7 +351,12 @@ async function startNineRouter(opts) {
   prependPath(env, [nodeBinDir, npmBinDir]);
   env.DATA_DIR = dataDir;
   if (os.platform() === 'win32') env.APPDATA = path.join(homeDir, 'AppData', 'Roaming');
-  if (proxy) { env.HTTP_PROXY = proxy; env.HTTPS_PROXY = proxy; env.http_proxy = proxy; env.https_proxy = proxy; }
+  if (proxy) {
+    env.HTTP_PROXY = proxy; env.HTTPS_PROXY = proxy; env.http_proxy = proxy; env.https_proxy = proxy;
+    // Node 24 的原生 fetch 默认不读 HTTP(S)_PROXY；9router 服务端刷 Kiro token 走 fetch 连 AWS OIDC，
+    // 国内必须走代理，故显式开启，让服务端 fetch 也吃上面的代理环境变量。
+    env.NODE_USE_ENV_PROXY = '1';
+  }
 
   // ── 2. 装 9router + claude-code（每次启动校验版本，有新版自动更新）──
   const registry = await selectFastest('npm', npmRegistries, npmRegistries[0].url, proxy, log);
@@ -392,21 +395,9 @@ async function startNineRouter(opts) {
     log('数据库就绪');
   }
 
-  // ── 4. 导入凭证（复用 import_kiro.mjs）──
-  if (fs.existsSync(credsDir)) {
-    log('导入 Kiro 凭证…');
-    const args = [importMjs, credsDir];
-    if (proxy) args.push(proxy);
-    args.push('--db', dbPath);
-    try {
-      await runNode(nodeExe, args, env, log);
-      log('凭证导入完成');
-    } catch (e) {
-      log('凭证导入警告：' + e.message);   // 导入失败不致命（可能 token 过期），继续用库里已有的
-    }
-  } else {
-    log('未找到 creds/ 目录，跳过凭证导入');
-  }
+  // ── 4. 凭证导入改为按需触发 ──
+  // 不再在启动时直写数据库；凭证由用户在「账号凭证」页点「导入到 9router」，
+  // 走 9router 自身的 REST API 导入（服务端刷 token + upsert，热生效、可重复）。
 
   // ── 5. 建 API Key（复用上次的固定 key）──
   let apiKey = readExistingKey(claudeCfg);
@@ -465,4 +456,4 @@ function randomHex(n) {
   return require('crypto').randomBytes(Math.ceil(n / 2)).toString('hex').slice(0, n);
 }
 
-module.exports = { startNineRouter, checkModels, stopManagedRouter, stopProcessTree, PORT_DEFAULT };
+module.exports = { startNineRouter, checkModels, stopManagedRouter, stopProcessTree, hasManagedRouter, PORT_DEFAULT };

@@ -38,6 +38,9 @@ contextBridge.exposeInMainWorld('api', {
   launchManualCodex: (cfg) => ipcRenderer.invoke('vscode:launchManualCodex', cfg),
   manualModels: (cfg) => ipcRenderer.invoke('manual:models', cfg),
   manualTestModel: (cfg) => ipcRenderer.invoke('manual:testModel', cfg),
+
+  // 检查更新（手动触发）：联网升级 npm 包 + VS Code 扩展
+  checkUpdate: () => ipcRenderer.invoke('update:check'),
   // 只起本地 9router（不开 VS Code）
   startRouterOnly: () => ipcRenderer.invoke('router:startOnly'),
   routerStatus: () => ipcRenderer.invoke('router:status'),
@@ -53,6 +56,8 @@ contextBridge.exposeInMainWorld('api', {
   kiroSetOverage: (accountId, enabled) => ipcRenderer.invoke('kiro:setOverage', accountId, enabled),
   kiroSaveCredential: (jsonStr) => ipcRenderer.invoke('kiro:saveCredential', jsonStr),
   kiroDeleteCredential: (fileId) => ipcRenderer.invoke('kiro:deleteCredential', fileId),
+  kiroSetEnabled: (fileId, enabled) => ipcRenderer.invoke('kiro:setEnabled', fileId, enabled),
+  kiroImportToRouter: () => ipcRenderer.invoke('kiro:importToRouter'),
   kiroGetProxy: () => ipcRenderer.invoke('kiro:getProxy'),
 
   // 启动日志流（下载/安装进度）——返回取消订阅函数

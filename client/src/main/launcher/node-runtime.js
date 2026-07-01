@@ -124,15 +124,30 @@ function latestPkgVersion(nodeExe, npmCli, pkg, env, log = () => {}, timeoutMs =
   });
 }
 
-// 确保一组 npm 全局包是最新版：逐个比对「已装 vs registry 最新」，
-// 只把"没装或落后"的收进一次 npm install。优雅降级：
+// 确保一组 npm 全局包就绪。两种模式：
+//   - checkUpdate=false（默认，快速启动）：已装的直接复用，不联网查版本（省去每包最多 10s 的 npm view）；
+//     只有没装的包才联网安装。
+//   - checkUpdate=true（点"检查更新"按钮）：逐个比对「已装 vs registry 最新」，落后就升级。
+// 优雅降级：
 //   - 查不到最新版（离线/registry 挂）→ 已装过就用旧的继续、只警告；没装过才抛错
 //   - runner: (pkgsToInstall:string[]) => Promise  实际执行安装的回调（由调用方提供 env/registry）
 async function ensureNpmGlobalLatest(opts) {
-  const { nodeExe, npmCli, npmPrefix, env, pkgs, runner, log = () => {} } = opts;
+  const { nodeExe, npmCli, npmPrefix, env, pkgs, runner, log = () => {}, checkUpdate = false } = opts;
   const toInstall = [];
   for (const pkg of pkgs) {
     const installed = installedPkgVersion(npmPrefix, pkg);
+
+    // 快速启动模式：已装即复用，跳过联网版本检查
+    if (!checkUpdate) {
+      if (installed) { log(`${pkg} 已就绪 v${installed}（复用，跳过更新检查）`); continue; }
+      // 没装才联网：查一次最新版再装（查不到就用 latest tag 兜底）
+      log(`${pkg} 未安装，开始安装…`);
+      const latest = await latestPkgVersion(nodeExe, npmCli, pkg, env, log);
+      toInstall.push(latest ? `${pkg}@${latest}` : `${pkg}@latest`);
+      continue;
+    }
+
+    // 检查更新模式：完整比对已装 vs registry 最新
     const latest = await latestPkgVersion(nodeExe, npmCli, pkg, env, log);
     if (!latest) {
       if (installed) { log(`${pkg} 无法检查更新（离线？），复用已装 v${installed}`); continue; }
