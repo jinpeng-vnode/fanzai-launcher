@@ -2,6 +2,7 @@
 .protected-src/
 node_modules/
 runtime/
+scripts/fanzai-client-src.tgz
 
 # 分发打包产物（zip 体积大，不进库）
 dist-packages/
