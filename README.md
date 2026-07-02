@@ -18,7 +18,7 @@
 饭仔启动包是一个 Electron 桌面客户端，集成了：
 
 - **9Router 智能路由器** — 多账号自动轮换、三层降级、省 20-40% token
-- **Kiro 凭证扫描** — 一键从本机 Kiro IDE 提取 OAuth 凭证并导入 9Router
+- **Kiro 凭证管理** — 一键导入凭证到 9Router（调 REST API，自动配代理池、支持 idc/external_idp）
 - **Claude Code / Codex 快速启动** — 配置好 API 后一键启动开发环境
 - **自定义 API 管理** — 支持任意 OpenAI 兼容端点，自动检测模型列表
 
@@ -26,16 +26,16 @@
 
 ### 方式一：直接运行（推荐）
 
-1. 下载 [Releases](../../releases) 页面的 `饭仔客户端-win-x64.zip`（绿色版，无需安装）
-2. 解压后双击 `启动.bat`
-3. 添加密钥或扫描本机 Kiro 凭证
+1. 下载 [Releases](../../releases) 页面的绿色包 zip
+2. 解压后双击 `启动.bat`（Windows）或 `启动.command`（macOS）
+3. 在「账号凭证」tab 添加凭证 → 启动 9Router → 点「导入到 9Router」
 
 ### 方式二：从源码构建
 
 ```bash
 # 克隆仓库
-git clone https://github.com/jinpeng-vnode/api-relay-hub.git
-cd api-relay-hub/饭仔9router-kiro-启动包/client
+git clone https://github.com/jinpeng-vnode/fanzai-launcher.git
+cd fanzai-launcher
 
 # 安装依赖
 npm install
@@ -43,28 +43,24 @@ npm install
 # 开发模式
 npm run dev
 
-# 构建 Electron portable exe（中间产物）
-npm run dist
-
-# 构建完整绿色分发包 zip
-cd ..
-node client/scripts/make-dist.mjs
+# 构建（详见下方打包命令）
+npm run pack:win:green   # Windows 绿色版 zip
+npm run pack:mac:green   # macOS 绿色版 zip
 ```
 
 ## 🔑 核心功能
 
-### Kiro 凭证扫描
+### 凭证导入
 
-自动扫描 `~/.aws/sso/cache/kiro-auth-token.json`，提取：
-- RefreshToken（可直接导入 9Router）
-- ProfileArn（区域路由必需）
-- ClientId / ClientSecret（token 刷新用）
+在「账号凭证」tab 管理凭证：
+- 添加凭证（支持 JSON 粘贴，数组自动拆分为多个文件）
+- 一键导入到运行中的 9Router（调 REST API，热生效、可重复）
+- 自动创建代理池并关联（对齐旧 import_kiro.mjs 逻辑）
+- 用量查询、超额开关、账号启用/禁用
 
-```bash
-# 命令行工具（不需要客户端也能用）
-node scan_kiro_credential.mjs
-node scan_kiro_credential.mjs --output creds/kiro.json --refresh
-```
+支持两种账号类型：
+- **idc**（AWS SSO）→ 9Router 服务端刷新 token
+- **external_idp**（微软 Entra ID）→ 原样存储
 
 ### 9Router 本地路由器
 
@@ -84,34 +80,49 @@ node scan_kiro_credential.mjs --output creds/kiro.json --refresh
 
 ```
 .
-├── client/               # Electron 客户端源码
-│   ├── src/main/         # 主进程（IPC、启动器）
-│   ├── src/preload/      # 预加载脚本（安全桥接）
-│   └── src/renderer/     # 渲染进程（UI）
-├── runtime/              # 运行时数据（便携 Node.js、9Router 等，首次启动自动下载）
-├── creds/                # 凭证文件（.gitignore）
-├── scan_kiro_credential.mjs  # Kiro 凭证扫描 CLI
-├── import_kiro.mjs       # 凭证导入 9Router CLI
-├── 启动.bat              # Windows 绿色包引导脚本
-└── 启动.command          # macOS 绿色包引导脚本
+├── package.json              # 项目根（Electron 入口 + 构建配置）
+├── src/                      # Electron 源码
+│   ├── main/                 # 主进程（IPC、启动器编排）
+│   │   ├── launcher/         # 9Router / VS Code / Codex 启动子模块
+│   │   ├── paths.js          # 启动包根目录解析
+│   │   └── ipc.js            # IPC 总入口
+│   ├── preload/              # 预加载脚本（安全桥接）
+│   └── renderer/             # 渲染进程（UI）
+├── scripts/                  # 工具脚本
+│   ├── import_kiro.mjs       # Kiro 凭证导入 CLI（旧，保留兼容）
+│   ├── scan_kiro_credential.mjs  # Kiro 凭证扫描 CLI
+│   ├── mac-build.py          # Mac Mini 远程构建脚本
+│   └── make-dist.mjs         # 绿色分发包打包
+├── lib/                      # 共享库
+├── docs/                     # 文档（导入流程图等）
+├── runtime/                  # 运行时数据（首次启动自动下载，gitignore）
+├── creds/                    # 凭证文件（gitignore）
+├── dist-packages/            # 分发包产物（gitignore）
+├── 启动.bat                  # Windows 绿色包引导脚本
+└── 启动.command              # macOS 绿色包引导脚本
 ```
 
-## 📦 打包与分发
+## 📦 打包命令
 
-面向用户只发布绿色版 zip，不提供安装版。Windows 用户解压后运行 `启动.bat`，macOS 用户运行 `启动.command`。启动脚本只负责定位启动包根目录和拉起 Electron 客户端，下载运行时、安装扩展、启动 9Router/VS Code/Codex 等能力都在客户端主进程和 mjs 模块里完成。
+| 命令 | 产物 | 说明 |
+|------|------|------|
+| `npm run dev` | — | 开发模式启动 |
+| `npm run pack:win:green` | `dist-packages/饭仔客户端-win-x64.zip` | Windows 绿色版（解压即用） |
+| `npm run pack:mac:green` | `dist-packages/饭仔客户端-mac-arm64.zip` | macOS 绿色版（解压即用） |
+| `npm run pack:win:setup` | `runtime/electron-app/饭仔客户端-Setup.exe` | Windows 安装版（NSIS） |
+| `npm run pack:mac:dmg` | `runtime/electron-app/饭仔客户端-arm64.dmg` | macOS 安装版（DMG） |
 
+Mac 构建需在 Mac Mini 上执行（无法交叉编译）：
 ```bash
-node client/scripts/make-dist.mjs
+python scripts/mac-build.py  # SSH 到 Mac Mini 远程构建
 ```
-
-Windows 会生成 `dist-packages/饭仔客户端-win-x64.zip`。`npm run dist` 生成的 `runtime/electron-app/饭仔客户端.exe` 是分发 zip 的中间产物。
 
 ## 🖥 平台支持
 
 | 平台 | 状态 | 说明 |
 |------|------|------|
-| Windows x64 | ✅ 完整支持 | 绿色 zip，无需安装 |
-| macOS (Intel/ARM) | 🔧 打包脚本已预留 | 需要 .app 签名/公证后正式发布 |
+| Windows x64 | ✅ 完整支持 | 绿色 zip + NSIS 安装包 |
+| macOS ARM64 | ✅ 完整支持 | 绿色 zip + DMG，未签名需手动放行 |
 | Linux x64 | 🔧 计划中 | AppImage |
 
 ## ⚠️ 免责声明

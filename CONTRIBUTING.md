@@ -7,18 +7,50 @@ Thank you for your interest! Issues and Pull Requests are welcome.
 ## 开发环境 / Development Setup
 
 ```bash
-cd client
-npm install
-npm run dev   # 开发模式
-npm run dist  # 构建 Electron portable exe（分发包中间产物）
+# 克隆仓库
+git clone https://github.com/jinpeng-vnode/fanzai-launcher.git
+cd fanzai-launcher
 
-cd ..
-node client/scripts/make-dist.mjs  # 构建完整绿色分发包 zip
+# 安装依赖
+npm install
+
+# 开发模式
+npm run dev
 ```
 
 **要求 / Requirements:**
 - Node.js 18+
-- Windows 10+ (构建 Windows 绿色包)
+- Windows 10+（构建 Windows 包）
+- macOS ARM64（构建 Mac 包，需 Mac Mini 远程构建）
+
+## 打包命令 / Build Commands
+
+| 命令 | 产物 |
+|------|------|
+| `npm run pack:win:green` | Windows 绿色版 zip |
+| `npm run pack:mac:green` | macOS 绿色版 zip |
+| `npm run pack:win:setup` | Windows NSIS 安装包 |
+| `npm run pack:mac:dmg` | macOS DMG 安装包 |
+
+Mac 构建需在 Mac Mini 上执行：
+```bash
+python scripts/mac-build.py
+```
+
+## 项目结构 / Project Structure
+
+```
+.
+├── package.json          # 根目录即 Electron 项目
+├── src/main/             # 主进程
+├── src/preload/          # 预加载脚本
+├── src/renderer/         # 渲染进程（UI）
+├── scripts/              # 工具脚本（构建、导入、扫描）
+├── lib/                  # 共享库
+├── docs/                 # 文档
+├── runtime/              # 运行时（gitignore）
+└── dist-packages/        # 分发包产物（gitignore）
+```
 
 ## 代码规范 / Code Style
 

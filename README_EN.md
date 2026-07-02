@@ -18,7 +18,7 @@
 Fanzai Launcher is an Electron desktop client that integrates:
 
 - **9Router Smart Router** — Multi-account rotation, 3-tier fallback, saves 20-40% tokens
-- **Kiro Credential Scanner** — One-click extraction of OAuth credentials from local Kiro IDE
+- **Kiro Credential Management** — One-click import to 9Router via REST API (auto proxy pool, supports idc/external_idp)
 - **Claude Code / Codex Quick Launch** — One-click launch after API configuration
 - **Custom API Management** — Supports any OpenAI-compatible endpoint with auto model detection
 
@@ -26,16 +26,16 @@ Fanzai Launcher is an Electron desktop client that integrates:
 
 ### Option 1: Direct Download (Recommended)
 
-1. Download `饭仔客户端-win-x64.zip` from the [Releases](../../releases) page (portable zip, no installation required)
-2. Extract it and double-click `启动.bat`
-3. Add API keys or scan local Kiro credentials
+1. Download the portable zip from the [Releases](../../releases) page
+2. Extract and double-click `启动.bat` (Windows) or `启动.command` (macOS)
+3. Go to "Credentials" tab → add credentials → start 9Router → click "Import to 9Router"
 
 ### Option 2: Build from Source
 
 ```bash
 # Clone the repository
-git clone https://github.com/jinpeng-vnode/api-relay-hub.git
-cd api-relay-hub/饭仔9router-kiro-启动包/client
+git clone https://github.com/jinpeng-vnode/fanzai-launcher.git
+cd fanzai-launcher
 
 # Install dependencies
 npm install
@@ -43,28 +43,24 @@ npm install
 # Development mode
 npm run dev
 
-# Build Electron portable exe (intermediate artifact)
-npm run dist
-
-# Build the complete portable distribution zip
-cd ..
-node client/scripts/make-dist.mjs
+# Build (see build commands below)
+npm run pack:win:green   # Windows portable zip
+npm run pack:mac:green   # macOS portable zip
 ```
 
 ## 🔑 Key Features
 
-### Kiro Credential Scanner
+### Credential Import
 
-Automatically scans `~/.aws/sso/cache/kiro-auth-token.json` to extract:
-- RefreshToken (directly importable to 9Router)
-- ProfileArn (required for region routing)
-- ClientId / ClientSecret (for token refresh)
+Manage credentials in the "Credentials" tab:
+- Add credentials (supports JSON paste, arrays auto-split into individual files)
+- One-click import to running 9Router (REST API, hot-reload, idempotent)
+- Auto-create proxy pool and link to connections
+- Usage queries, overage toggle, account enable/disable
 
-```bash
-# CLI tool (works without the GUI client)
-node scan_kiro_credential.mjs
-node scan_kiro_credential.mjs --output creds/kiro.json --refresh
-```
+Supports two account types:
+- **idc** (AWS SSO) → 9Router server-side token refresh
+- **external_idp** (Microsoft Entra ID) → stored as-is
 
 ### 9Router Local Router
 
@@ -84,34 +80,49 @@ Runs 9Router locally to provide:
 
 ```
 .
-├── client/               # Electron client source
-│   ├── src/main/         # Main process (IPC, launchers)
-│   ├── src/preload/      # Preload scripts (security bridge)
-│   └── src/renderer/     # Renderer process (UI)
-├── runtime/              # Runtime data (portable Node.js, 9Router, etc., auto-downloaded on first launch)
-├── creds/                # Credential files (.gitignore'd)
-├── scan_kiro_credential.mjs  # Kiro credential scanner CLI
-├── import_kiro.mjs       # Credential import to 9Router CLI
-├── 启动.bat              # Windows portable package launcher
-└── 启动.command          # macOS portable package launcher
+├── package.json              # Project root (Electron entry + build config)
+├── src/                      # Electron source
+│   ├── main/                 # Main process (IPC, launcher orchestration)
+│   │   ├── launcher/         # 9Router / VS Code / Codex launch submodules
+│   │   ├── paths.js          # Launcher root directory resolution
+│   │   └── ipc.js            # IPC entry point
+│   ├── preload/              # Preload scripts (security bridge)
+│   └── renderer/             # Renderer process (UI)
+├── scripts/                  # Utility scripts
+│   ├── import_kiro.mjs       # Kiro credential import CLI (legacy, kept for compat)
+│   ├── scan_kiro_credential.mjs  # Kiro credential scanner CLI
+│   ├── mac-build.py          # Mac Mini remote build script
+│   └── make-dist.mjs         # Portable distribution packaging
+├── lib/                      # Shared libraries
+├── docs/                     # Documentation
+├── runtime/                  # Runtime data (auto-downloaded on first launch, gitignored)
+├── creds/                    # Credential files (gitignored)
+├── dist-packages/            # Distribution packages (gitignored)
+├── 启动.bat                  # Windows portable launcher
+└── 启动.command              # macOS portable launcher
 ```
 
-## 📦 Packaging and Distribution
+## 📦 Build Commands
 
-The user-facing release is a portable zip only. There is no installer build. Windows users extract the zip and run `启动.bat`; macOS users run `启动.command`. The startup scripts only locate the launcher root and start the Electron client. Runtime downloads, extension installation, 9Router startup, VS Code launch, and Codex launch are handled by the Electron main process and mjs modules.
+| Command | Output | Description |
+|---------|--------|-------------|
+| `npm run dev` | — | Development mode |
+| `npm run pack:win:green` | `dist-packages/饭仔客户端-win-x64.zip` | Windows portable (extract & run) |
+| `npm run pack:mac:green` | `dist-packages/饭仔客户端-mac-arm64.zip` | macOS portable (extract & run) |
+| `npm run pack:win:setup` | `runtime/electron-app/饭仔客户端-Setup.exe` | Windows installer (NSIS) |
+| `npm run pack:mac:dmg` | `runtime/electron-app/饭仔客户端-arm64.dmg` | macOS installer (DMG) |
 
+Mac builds require execution on Mac Mini (no cross-compilation):
 ```bash
-node client/scripts/make-dist.mjs
+python scripts/mac-build.py  # SSH remote build on Mac Mini
 ```
-
-On Windows this creates `dist-packages/饭仔客户端-win-x64.zip`. The `runtime/electron-app/饭仔客户端.exe` produced by `npm run dist` is an intermediate artifact used by the zip package.
 
 ## 🖥 Platform Support
 
 | Platform | Status | Notes |
 |----------|--------|-------|
-| Windows x64 | ✅ Full support | Portable zip, no install needed |
-| macOS (Intel/ARM) | 🔧 Packaging script prepared | Requires .app signing/notarization before public release |
+| Windows x64 | ✅ Full support | Portable zip + NSIS installer |
+| macOS ARM64 | ✅ Full support | Portable zip + DMG, unsigned (manual allow required) |
 | Linux x64 | 🔧 Planned | AppImage |
 
 ## ⚠️ Disclaimer

@@ -1,5 +1,34 @@
 # Changelog / 更新日志
 
+## [0.3.0] - 2026-07-02
+
+### 新增 / Added
+- **一键导入凭证到 9Router**：凭证 tab 新增「导入到 9router」按钮，调 REST API 热生效、可重复导入
+  - external_idp（微软）→ `import-cli-proxy`（原样存）
+  - idc（AWS SSO）→ `/api/oauth/kiro/import`（服务端刷新）
+  - 自动创建代理池 + 关联到连接
+  - 添加凭证时数组自动拆分为多个独立文件
+- **超额开关做实**：先查真实 ENABLED/DISABLED 再取反（修复只能开不能关）
+- **账号启用/禁用**：新增切换入口，写回 json 文件
+- **检查更新按钮**：顶部标题栏 ↻ 按钮，按需触发联网升级
+
+### 修复 / Fixed
+- 模型刷新残留 bug（服务器返回替换而非合并）
+- Windows 路径 querySelector bug（改用稳定 DOM id）
+- macOS 进程识别失败（`/proc` 不存在 + Next.js 改写进程标题，回退到 `ps`）
+- paths.js 哨兵误命中 .app 内部 package.json（改为检测 `scripts/` 目录）
+- 9Router 服务端刷 token 走代理（加 `NODE_USE_ENV_PROXY=1`）
+
+### 变更 / Changed
+- **项目结构重构**：消除 `client/` 子层，根目录即 Electron 项目
+  - `npm run dev` / `npm run pack:*` 直接在根目录执行
+  - 独立脚本归入 `scripts/`（import_kiro.mjs、scan_kiro_credential.mjs、init.mjs）
+- 启动时不再直写 sqlite 导入凭证（改为按需 API 调用）
+- 启动提速：npm 包 / VS Code 扩展本地已有则复用，不联网检查
+- 窗口默认尺寸调大（1280×780）
+- 打包命令统一为 `pack:win:green` / `pack:mac:green` / `pack:win:setup` / `pack:mac:dmg`
+- Mac 远程构建改用 `/tmp` 临时目录，产出完整绿色 zip
+
 ## [0.2.1] - 2026-06-24
 
 ### 修复 / Fixed
