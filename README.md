@@ -125,6 +125,68 @@ python scripts/mac-build.py  # SSH 到 Mac Mini 远程构建
 | macOS ARM64 | ✅ 完整支持 | 绿色 zip + DMG，未签名需手动放行 |
 | Linux x64 | 🔧 计划中 | AppImage |
 
+## 功能全景图 — 完成度: 95%
+
+> 项目定义：Electron 桌面客户端，集成 9Router 智能路由 + Kiro 凭证管理 + AI 编程工具一键启动
+> 当前阶段：已上线（持续维护）
+> 下一步优先级：
+> 1. Linux 平台支持（AppImage）
+> 2. 项目规范化整理（#1 进行中）
+> 禁止：无
+
+```
+饭仔客户端 (fanzai-client)
+├── Electron 主框架（src/main/）
+│   ├── 无边框暗色窗口 — ✅
+│   ├── 单实例锁 — ✅
+│   ├── 崩溃护栏（uncaughtException/unhandledRejection）— ✅
+│   ├── IPC 通信桥（ipc.js）— ✅
+│   └── 文件日志系统（logger.js）— ✅
+├── 9Router 本地路由器（src/main/launcher/ninerouter.js）
+│   ├── 启动/停止/状态检测 — ✅
+│   ├── 多账号自动轮换 — ✅
+│   ├── 请求失败三层降级 — ✅
+│   └── RTK Token 压缩 — ✅
+├── Kiro 凭证管理（src/main/launcher/kiro-credentials.js）
+│   ├── 凭证扫描（本机 AWS SSO 缓存）— ✅
+│   ├── 凭证添加/删除/启用禁用 — ✅
+│   ├── 一键导入到 9Router（REST API 热生效）— ✅
+│   ├── 用量查询 — ✅
+│   ├── 超额开关 — ✅
+│   └── 支持 idc + external_idp 两种类型 — ✅
+├── AI 工具启动器（src/main/launcher/）
+│   ├── Claude Code 远程模式启动（vscode.js）— ✅
+│   ├── Claude Code 本地 9Router 模式（vscode.js）— ✅
+│   ├── Codex 启动（codex.js）— ✅
+│   ├── 自定义 API + Claude Code（ipc.js）— ✅
+│   ├── 自定义 API + Codex（ipc.js）— ✅
+│   └── 项目运行时选择（project-runtime.js）— ✅
+├── 多密钥管理（src/main/ipc.js）
+│   ├── 饭仔密钥 + 自定义 API 并存 — ✅
+│   ├── 添加/删除/切换密钥 — ✅
+│   ├── 批量用量查询 — ✅
+│   └── 自动检测模型列表 — ✅
+├── MCP 配置管理（src/main/launcher/mcp.js）
+│   ├── MCP 设置读写 — ✅
+│   └── 同步到 Claude/Codex 配置 — ✅
+├── 渲染进程 UI（src/renderer/）
+│   ├── 暗色现代界面 — ✅
+│   ├── 自绘标题栏 — ✅
+│   └── 多 Tab 面板（凭证/密钥/启动）— ✅
+├── 跨平台构建（scripts/）
+│   ├── Windows 绿色版 zip — ✅
+│   ├── Windows NSIS 安装版 — ✅
+│   ├── macOS 绿色版 zip — ✅
+│   ├── macOS DMG 安装版 — ✅
+│   └── Linux AppImage — ❌(#1 计划中)
+└── 工具脚本（scripts/）
+    ├── Kiro 凭证导入 CLI — ✅
+    ├── Kiro 凭证扫描 CLI — ✅
+    └── Mac Mini 远程构建 — ✅
+```
+
+---
+
 ## ⚠️ 免责声明
 
 本项目仅供技术学习与交流目的。
