@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- 饭仔客户端图标：Fleet 原图（深色圆 + 白色眼睛横条），下方加「饭」字区分。源文件，png/ico 由 scripts/build-icons.mjs 生成 -->
+  <circle cx="128" cy="128" r="112" fill="#161616"/>
+  <rect x="58" y="58" width="140" height="40" rx="20" fill="#FFFFFF"/>
+  <text x="128" y="200" text-anchor="middle" font-size="96" font-weight="700" fill="#FFFFFF"
+        font-family="PingFang SC, HarmonyOS Sans SC, MiSans, Microsoft YaHei UI, Microsoft YaHei, sans-serif">饭</text>
+</svg>

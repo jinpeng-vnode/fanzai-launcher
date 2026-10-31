@@ -52,7 +52,8 @@ function createWindow() {
     show: false,
     frame: false,              // 无边框 — 自绘标题栏，配合暗色现代 UI
     titleBarStyle: 'hidden',
-    backgroundColor: '#0f1115', // 暗色底，避免加载白闪
+    backgroundColor: '#0B0B0C', // Fleet 暗色底（同 theme.css --bg），避免加载白闪
+    icon: path.join(__dirname, '..', '..', 'assets', 'icon.png'), // 窗口和任务栏图标（assets/ 随包打入）
     webPreferences: {
       preload: path.join(__dirname, '..', 'preload', 'preload.js'),
       contextIsolation: true,  // 渲染层与 node 隔离，只能走 preload 暴露的白名单 API

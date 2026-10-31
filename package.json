@@ -7,6 +7,7 @@
   "private": true,
   "scripts": {
     "dev": "electron . --dev",
+    "icons": "electron scripts/build-icons.js",
     "prekill": "taskkill /IM \"饭仔客户端.exe\" /T /F 2>nul || echo ok",
     "pack:win:green": "npm run prekill && node scripts/make-dist.mjs",
     "pack:mac:green": "node scripts/make-dist.mjs",
@@ -16,6 +17,7 @@
   "build": {
     "appId": "com.fanzai.client",
     "productName": "饭仔客户端",
+    "icon": "assets/icon.ico",
     "directories": {
       "output": "runtime/electron-app"
     },
@@ -56,6 +58,7 @@
           ]
         }
       ],
+      "icon": "assets/icon.png",
       "category": "public.app-category.developer-tools",
       "artifactName": "饭仔客户端-${arch}.${ext}"
     }
