@@ -1,0 +1,69 @@
+/* Fleet 产品集群统一主题：配色和字体取自 Fleet 网页暗色那一套（packages/web-dsh/public/home.html）。
+   styles.css 只引用这里的变量，不再写死颜色。 */
+:root {
+  --bg: #0B0B0C;
+  --bg-soft: #111113;
+  --bg-card: #141416;
+  --bg-card-hover: #1A1A1D;
+  --bg-log: #08080A;
+  --border: rgba(228, 228, 231, 0.16);
+  --border-soft: rgba(228, 228, 231, 0.10);
+  --border-strong: rgba(228, 228, 231, 0.24);
+  --text: #E4E4E7;
+  --text-dim: #9A9DA3;
+  --text-muted: #9A9DA3;
+  --text-faint: #6E7177;
+  --accent: #6B85FF;
+  --accent-soft: rgba(107, 133, 255, 0.14);
+  --accent-hover: rgba(107, 133, 255, 0.22);
+  --accent-line: rgba(107, 133, 255, 0.35);
+  --on-accent: #FFFFFF;
+  --good: #3DDC97;
+  --good-soft: rgba(61, 220, 151, 0.08);
+  --good-line: rgba(61, 220, 151, 0.30);
+  --warn: #FFB454;
+  --danger: #FF5C72;
+  --danger-soft: rgba(255, 92, 114, 0.08);
+  --danger-hover: rgba(255, 92, 114, 0.18);
+  --danger-line: rgba(255, 92, 114, 0.35);
+  --logo-body: #E4E4E7;
+  --logo-eye: #0B0B0C;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --font-text: "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei UI", "Segoe UI", system-ui, sans-serif;
+  --font-display: "SF Pro Display", "Segoe UI Variable Display", "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei UI", system-ui, sans-serif;
+  --font-mono: "SF Mono", "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+}
+
+/* 标题类文字用 Fleet 的展示字体 */
+.brand-name,
+.card-head h2,
+.empty-title { font-family: var(--font-display); }
+
+/* Fleet 标志（圆形 + 眼睛横条），与 Fleet 网页 .mark 同一画法 */
+.fleet-mark .b { fill: var(--logo-body); }
+.fleet-mark .e { fill: var(--logo-eye); }
+.fleet-mark-sm { width: 16px; height: 16px; flex: none; }
+
+/* 侧栏品牌块：Fleet 标志 + 「饭」字角标，替代原来的渐变方块 */
+.brand-mark {
+  position: relative;
+  background: transparent;
+}
+.brand-mark .fleet-mark { width: 40px; height: 40px; }
+.brand-mark-char {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: var(--on-accent);
+  border: 2px solid var(--bg-soft);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+}

@@ -6,12 +6,14 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self';" />
   <title>饭仔客户端</title>
   <link rel="stylesheet" href="styles.css" />
+  <!-- theme.css 放在后面：Fleet 变量和品牌块样式覆盖 styles.css -->
+  <link rel="stylesheet" href="theme.css" />
 </head>
 <body>
   <!-- 自绘标题栏（无边框窗口） -->
   <div class="titlebar">
     <div class="titlebar-title">
-      <span class="logo-dot"></span>
+      <svg class="fleet-mark fleet-mark-sm" viewBox="0 0 256 256" aria-hidden="true"><circle class="b" cx="128" cy="128" r="112"/><rect class="e" x="48" y="78" width="160" height="48" rx="24"/></svg>
       饭仔 · Claude Code 启动器
     </div>
     <div class="titlebar-actions">
@@ -26,7 +28,7 @@
     <!-- 左侧：品牌 + 密钥列表 + 状态 -->
     <aside class="sidebar">
       <div class="brand">
-        <div class="brand-mark">饭</div>
+        <div class="brand-mark"><svg class="fleet-mark" viewBox="0 0 256 256" aria-hidden="true"><circle class="b" cx="128" cy="128" r="112"/><rect class="e" x="48" y="78" width="160" height="48" rx="24"/></svg><span class="brand-mark-char">饭</span></div>
         <div class="brand-text">
           <div class="brand-name">饭仔客户端</div>
           <div class="brand-sub">Claude Opus · Kiro</div>
