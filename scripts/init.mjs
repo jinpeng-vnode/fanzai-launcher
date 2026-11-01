@@ -3,11 +3,11 @@
 // 流程：检测代理 → 确保运行时 → 启动 9Router → API 初始化 → 打印信息
 //
 // 用法：
-//   node init.mjs [--port 20128] [--proxy http://...] [--no-setup] [--no-download]
+//   node init.mjs [--port 20128] [--host 127.0.0.1] [--proxy http://...] [--no-setup] [--no-download]
 //
 // 环境变量：
 //   NINEROUTER_PORT             — 端口（默认 20128）
-//   NINEROUTER_INITIAL_PASSWORD — 管理密码（默认 admin123）
+//   NINEROUTER_INITIAL_PASSWORD — 管理密码（不设则首次启动随机生成，只提示一次）
 //   HTTP_PROXY / HTTPS_PROXY   — 代理
 
 import { join, dirname } from 'node:path';
@@ -23,6 +23,7 @@ const __dirname = dirname(__filename);
 function parseArgs(argv) {
   const opts = {
     port: parseInt(process.env.NINEROUTER_PORT || '20128', 10),
+    host: null,
     proxy: null,
     noSetup: false,
     noDownload: false,
@@ -31,6 +32,7 @@ function parseArgs(argv) {
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--port' && argv[i + 1]) opts.port = parseInt(argv[++i], 10);
+    else if (a === '--host' && argv[i + 1]) opts.host = argv[++i];
     else if (a === '--proxy' && argv[i + 1]) opts.proxy = argv[++i];
     else if (a === '--no-setup') opts.noSetup = true;
     else if (a === '--no-download') opts.noDownload = true;
@@ -148,14 +150,18 @@ async function main() {
 
   // 3. 启动 9Router
   const { startRouter, stopRouter } = await import('./lib/router.mjs');
+  const { DEFAULT_HOST, resolveAdminPassword } = await import('./lib/setup.mjs');
   const dataDir = join(__dirname, 'runtime', '9router-data');
   process.env.DATA_DIR = dataDir;
+  const host = opts.host || DEFAULT_HOST;
+  const password = resolveAdminPassword({ dataDir });
+  process.env.INITIAL_PASSWORD = password; // 9Router 未改过密码时以此为管理密码
 
   const routerHandle = await startRouter({
     nodeExe,
     routerBin,
     port: opts.port,
-    host: '0.0.0.0',
+    host,
     dataDir,
     proxy: opts.proxy,
   });
@@ -166,7 +172,7 @@ async function main() {
   if (!opts.noSetup) {
     try {
       const { runSetup } = await import('./lib/setup.mjs');
-      const result = await runSetup({ port: opts.port, proxy: opts.proxy });
+      const result = await runSetup({ port: opts.port, proxy: opts.proxy, password });
       apiKey = result.apiKey;
     } catch (e) {
       console.log(`[!] API 初始化失败: ${e.message}`);
@@ -177,7 +183,7 @@ async function main() {
   }
 
   // 5. 打印连接信息
-  const lanIP = getLanIP();
+  const lanIP = host === DEFAULT_HOST ? null : getLanIP();
   const baseUrl = `http://127.0.0.1:${opts.port}`;
   const lanUrl = lanIP ? `http://${lanIP}:${opts.port}` : null;
 

@@ -7,6 +7,7 @@
   "private": true,
   "scripts": {
     "dev": "electron . --dev",
+    "test": "node --test \"test/*.test.mjs\"",
     "icons": "electron scripts/build-icons.js",
     "prekill": "taskkill /IM \"饭仔客户端.exe\" /T /F 2>nul || echo ok",
     "pack:win:green": "npm run prekill && node scripts/make-dist.mjs",
