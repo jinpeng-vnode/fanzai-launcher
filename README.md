@@ -76,6 +76,12 @@ npm run pack:mac:green   # macOS 绿色版 zip
 - 没有固定的默认密码。没设环境变量 `NINEROUTER_INITIAL_PASSWORD` 时，第一次启动随机生成一个管理密码，只在控制台打印这一次，不写进日志文件，也不进 git；本机保存在 `runtime/9router-data/.admin-password`（`runtime/` 已被 gitignore）。
 - 忘了密码时重新设置：关掉 9Router，设置环境变量 `NINEROUTER_INITIAL_PASSWORD=<新密码>` 后再启动；或删除 `runtime/9router-data/.admin-password`，下次启动会重新生成并打印一个新密码。如果已经在 9Router 的 Web 管理页改过密码，以 Web 管理页设置的为准。
 
+#### 客户端（GUI）入口的监听地址和管理密码
+
+- 同样默认只监听 `127.0.0.1`，界面上不再显示局域网地址。确实要给局域网用，启动客户端前设置环境变量 `NINEROUTER_HOST=0.0.0.0`。
+- 不再使用 9Router 自带的固定默认密码。没设 `NINEROUTER_INITIAL_PASSWORD` 时，第一次启动随机生成管理密码，只打印到控制台一次，不写进 `runtime/client.log`，也不显示在界面上；本机保存在 `runtime/data/.admin-password`。
+- 忘了密码：设置环境变量 `NINEROUTER_INITIAL_PASSWORD=<新密码>` 后重启客户端；或删除 `runtime/data/.admin-password` 后重启，会重新生成。
+
 ### 多密钥管理
 
 - 支持饭仔密钥（带用量查询）和自定义 API 并存

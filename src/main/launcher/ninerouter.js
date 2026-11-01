@@ -12,6 +12,7 @@ const http = require('http');
 const { spawn, execFileSync } = require('child_process');
 const { ensureNode, npmCliPath, ensureNpmGlobalLatest } = require('./node-runtime');
 const { selectFastest } = require('./download');
+const { routerHost, isLoopbackHost, resolveAdminPassword } = require('./router-auth');
 
 const PORT_DEFAULT = 20128;
 
@@ -32,7 +33,9 @@ function localUrl(port) {
   return `http://127.0.0.1:${port}`;
 }
 
+// 只监听本机时没有局域网地址
 function lanUrl(port) {
+  if (isLoopbackHost(routerHost())) return '';
   const ip = getLanIp();
   return ip ? `http://${ip}:${port}` : '';
 }
@@ -207,7 +210,7 @@ function isPortFree(port) {
     const srv = require('net').createServer();
     srv.once('error', () => resolve(false));
     srv.once('listening', () => srv.close(() => resolve(true)));
-    srv.listen(port, '0.0.0.0');
+    srv.listen(port, routerHost());
   });
 }
 
@@ -365,6 +368,9 @@ async function startNineRouter(opts) {
   const npmBinDir = os.platform() === 'win32' ? npmPrefix : path.join(npmPrefix, 'bin');
   prependPath(env, [nodeBinDir, npmBinDir]);
   env.DATA_DIR = dataDir;
+  // 9router 未在 Web 管理页改过密码时，以 INITIAL_PASSWORD 为管理密码（不设的话 9router 会用它自带的固定默认密码）
+  env.INITIAL_PASSWORD = resolveAdminPassword({ dataDir, log });
+  const host = routerHost();
   if (os.platform() === 'win32') env.APPDATA = path.join(homeDir, 'AppData', 'Roaming');
   if (proxy) {
     env.HTTP_PROXY = proxy; env.HTTPS_PROXY = proxy; env.http_proxy = proxy; env.https_proxy = proxy;
@@ -391,7 +397,7 @@ async function startNineRouter(opts) {
   // ── 3. 初始化数据库（首次 self-heal 下载 better-sqlite3，1-2 分钟）──
   if (!fs.existsSync(dbPath)) {
     log('初始化 9router 数据库（首次需下载运行时，约 1-2 分钟）…');
-    const initRun = spawnRouter(nodeExe, routerCli, port, '0.0.0.0', env, runtimeDir, 'init', log);
+    const initRun = spawnRouter(nodeExe, routerCli, port, host, env, runtimeDir, 'init', log);
     const init = initRun.proc;
     let spawnErr = null;
     init.on('error', (e) => { spawnErr = e; });
@@ -429,7 +435,7 @@ async function startNineRouter(opts) {
 
   // ── 7. 启动 9router（后台托管，由主进程持有句柄）──
   log('启动 9router…');
-  const run = spawnRouter(nodeExe, routerCli, port, '0.0.0.0', env, runtimeDir, 'live', log);
+  const run = spawnRouter(nodeExe, routerCli, port, host, env, runtimeDir, 'live', log);
   const proc = run.proc;
   let procErr = null;
   proc.on('error', (e) => { procErr = e; });

@@ -18,6 +18,8 @@ import os from 'node:os';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+// init.mjs 在 scripts/ 下，lib/ 和 runtime/ 在启动包根目录
+const ROOT = join(__dirname, '..');
 
 // ── 参数解析 ──
 function parseArgs(argv) {
@@ -122,12 +124,12 @@ async function main() {
 
   // 2. 确保运行时（Node.js + 9Router）
   // 如果正在被 runtime/node/node.exe 执行，说明 Node 已就绪，只需确保 9Router 安装
-  const { ensureNode, ensureRouter, getPaths } = await import('./lib/runtime.mjs');
+  const { ensureNode, ensureRouter, getPaths } = await import('../lib/runtime.mjs');
 
   let nodeExe = process.execPath; // 当前正在执行的 node
   if (!opts.noDownload) {
     // 如果当前 node 不在 runtime 目录内（例如系统 node 直接调用），仍检测/下载便携版
-    const runtimeNodeDir = join(__dirname, 'runtime', 'node');
+    const runtimeNodeDir = join(ROOT, 'runtime', 'node');
     const isPortableNode = process.execPath.startsWith(runtimeNodeDir.replace(/\\/g, '/'))
       || process.execPath.replace(/\//g, '\\').startsWith(runtimeNodeDir);
 
@@ -149,9 +151,9 @@ async function main() {
   console.log('');
 
   // 3. 启动 9Router
-  const { startRouter, stopRouter } = await import('./lib/router.mjs');
-  const { DEFAULT_HOST, resolveAdminPassword } = await import('./lib/setup.mjs');
-  const dataDir = join(__dirname, 'runtime', '9router-data');
+  const { startRouter, stopRouter } = await import('../lib/router.mjs');
+  const { DEFAULT_HOST, resolveAdminPassword } = await import('../lib/setup.mjs');
+  const dataDir = join(ROOT, 'runtime', '9router-data');
   process.env.DATA_DIR = dataDir;
   const host = opts.host || DEFAULT_HOST;
   const password = resolveAdminPassword({ dataDir });
@@ -171,7 +173,7 @@ async function main() {
   let apiKey = null;
   if (!opts.noSetup) {
     try {
-      const { runSetup } = await import('./lib/setup.mjs');
+      const { runSetup } = await import('../lib/setup.mjs');
       const result = await runSetup({ port: opts.port, proxy: opts.proxy, password });
       apiKey = result.apiKey;
     } catch (e) {
