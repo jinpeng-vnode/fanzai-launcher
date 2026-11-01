@@ -70,6 +70,12 @@ npm run pack:mac:green   # macOS 绿色版 zip
 - RTK Token 压缩（省 20-40% token）
 - OpenAI / Claude / Gemini 格式自动转换
 
+#### 命令行入口（scripts/init.mjs）的监听地址和管理密码
+
+- 默认只监听 `127.0.0.1`，局域网里的其他机器访问不到。确实要给局域网用，启动时显式加 `--host 0.0.0.0`。
+- 没有固定的默认密码。没设环境变量 `NINEROUTER_INITIAL_PASSWORD` 时，第一次启动随机生成一个管理密码，只在控制台打印这一次，不写进日志文件，也不进 git；本机保存在 `runtime/9router-data/.admin-password`（`runtime/` 已被 gitignore）。
+- 忘了密码时重新设置：关掉 9Router，设置环境变量 `NINEROUTER_INITIAL_PASSWORD=<新密码>` 后再启动；或删除 `runtime/9router-data/.admin-password`，下次启动会重新生成并打印一个新密码。如果已经在 9Router 的 Web 管理页改过密码，以 Web 管理页设置的为准。
+
 ### 多密钥管理
 
 - 支持饭仔密钥（带用量查询）和自定义 API 并存
